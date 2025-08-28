@@ -1,224 +1,441 @@
-# CardWise Application Deployment Guide
+# CardWise Deployment Guide
 
-This guide provides instructions for deploying the CardWise application using the provided deployment scripts.
+This guide provides step-by-step instructions for deploying CardWise, a digital card collection management application.
 
 ## Prerequisites
 
-Before deploying CardWise, ensure you have the following installed:
+Before deploying CardWise, ensure your system meets the following requirements:
 
-- **Node.js** (version 16 or higher)
-- **npm** (comes with Node.js)
-- **MongoDB** (running locally or accessible remotely)
-- **Git** (for cloning the repository)
+### System Requirements
+- **Operating System**: Ubuntu 20.04+ or similar Linux distribution
+- **Node.js**: Version 16.0 or higher
+- **npm**: Version 8.0 or higher
+- **MongoDB**: Version 5.0 or higher
+- **Memory**: Minimum 2GB RAM (4GB recommended)
+- **Storage**: Minimum 10GB free space
 
-### Installing Prerequisites on Ubuntu/Debian:
+### Optional Components
+- **Ollama**: For AI-powered card scanning functionality
+- **NVIDIA GPU**: For accelerated AI processing (if using Ollama)
 
+## Installation Steps
+
+### 1. System Preparation
+
+Update your system packages:
 ```bash
-# Install Node.js
+sudo apt update && sudo apt upgrade -y
+```
+
+Install Node.js and npm:
+```bash
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 sudo apt-get install -y nodejs
+```
 
-# Install MongoDB
+Verify installation:
+```bash
+node --version  # Should be v16.0 or higher
+npm --version   # Should be v8.0 or higher
+```
+
+### 2. MongoDB Installation
+
+Install MongoDB:
+```bash
 wget -qO - https://www.mongodb.org/static/pgp/server-6.0.asc | sudo apt-key add -
 echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
 sudo apt-get update
 sudo apt-get install -y mongodb-org
+```
 
-# Start MongoDB
+Start and enable MongoDB:
+```bash
 sudo systemctl start mongod
 sudo systemctl enable mongod
 ```
 
-### Installing Prerequisites on macOS:
-
+Verify MongoDB is running:
 ```bash
-# Install Node.js using Homebrew
-brew install node
-
-# Install MongoDB using Homebrew
-brew tap mongodb/brew
-brew install mongodb-community
-brew services start mongodb-community
+sudo systemctl status mongod
+mongosh --eval 'db.runCommand("connectionStatus")'
 ```
 
-## Deployment Scripts
+### 3. CardWise Application Setup
 
-The CardWise application comes with three deployment scripts:
-
-1. **`deploy.sh`** - Main deployment script that sets up and starts the application
-2. **`stop.sh`** - Stops all application services
-3. **`status.sh`** - Checks the status of all services
-
-## Quick Start
-
-1. **Make scripts executable:**
-   ```bash
-   chmod +x deploy.sh stop.sh status.sh
-   ```
-
-2. **Deploy the application:**
-   ```bash
-   ./deploy.sh
-   ```
-
-3. **Access the application:**
-   - Frontend: http://localhost:5173
-   - Backend API: http://localhost:3000
-   - Admin login: admin@cardwise.com / admin123
-
-## Detailed Deployment Process
-
-### Step 1: Prepare the Environment
-
-The deployment script will automatically:
-- Check Node.js and MongoDB installations
-- Install all dependencies for both client and server
-- Create environment configuration files
-- Set up database connections
-
-### Step 2: Start Services
-
-The script will:
-- Start the Express.js backend server on port 3000
-- Seed the database with an admin user and sample cards
-- Start the React frontend development server on port 5173
-
-### Step 3: Verify Deployment
-
-After deployment, you can verify everything is working:
-
+Clone or extract the CardWise application:
 ```bash
-# Check service status
-./status.sh
-
-# Test API endpoints
-curl http://localhost:3000/api/seed/admin
-curl http://localhost:3000/api/seed/cards
-
-# Access the web interface
-open http://localhost:5173
+cd /opt
+sudo mkdir CardWise
+sudo chown $USER:$USER CardWise
+cd CardWise
+# Extract your CardWise files here
 ```
 
-## Managing the Application
-
-### Starting the Application
+Install dependencies:
 ```bash
-./deploy.sh
+# Install root dependencies
+npm install
+
+# Install client dependencies
+cd client
+npm install
+cd ..
+
+# Install server dependencies
+cd server
+npm install
+cd ..
 ```
 
-### Stopping the Application
+### 4. Environment Configuration
+
+Create environment file:
 ```bash
-./stop.sh
+cp .env.example .env
 ```
 
-### Checking Status
+Edit the environment file:
 ```bash
-./status.sh
+nano .env
 ```
 
-### Viewing Logs
-```bash
-# Server logs
-tail -f server.log
-
-# Client logs
-tail -f client.log
-```
-
-## Configuration
-
-### Environment Variables
-
-The deployment script creates a `server/.env` file with default values:
-
+Configure the following variables:
 ```env
+# Database
+DATABASE_URL=mongodb://localhost:27017/CardWise
+
+# Server
 PORT=3000
-DATABASE_URL=mongodb://localhost/CardWise
-JWT_SECRET=your-jwt-secret-key-here
-REFRESH_TOKEN_SECRET=your-refresh-token-secret-here
+NODE_ENV=production
+
+# Security (generate secure values)
+JWT_SECRET=your-secure-jwt-secret-here
+REFRESH_TOKEN_SECRET=your-secure-refresh-secret-here
+SESSION_SECRET=your-secure-session-secret-here
+
+# Ollama (optional)
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_MODEL=llava:latest
 ```
 
-**Important:** For production deployments, update the JWT secrets with secure, randomly generated values.
+### 5. Database Initialization
 
-### Database Configuration
+Start the server temporarily to initialize the database:
+```bash
+cd server
+npm start &
+SERVER_PID=$!
+```
 
-By default, the application connects to a local MongoDB instance. To use a remote MongoDB instance:
+Seed the database:
+```bash
+# Create admin user
+curl -X POST http://localhost:3000/api/seed/admin
 
-1. Update the `DATABASE_URL` in `server/.env`
-2. Ensure the MongoDB instance is accessible
-3. Restart the application
+# Create sample cards
+curl -X POST http://localhost:3000/api/seed/cards
+```
+
+Stop the temporary server:
+```bash
+kill $SERVER_PID
+```
+
+### 6. Optional: Ollama Setup
+
+If you want AI-powered card scanning, install Ollama:
+
+```bash
+# Install Ollama
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# Start Ollama service
+sudo systemctl start ollama
+sudo systemctl enable ollama
+
+# Pull the required model
+ollama pull llava:latest
+```
+
+### 7. Production Deployment
+
+#### Option A: Using PM2 (Recommended)
+
+Install PM2:
+```bash
+sudo npm install -g pm2
+```
+
+Create PM2 ecosystem file:
+```bash
+cat > ecosystem.config.js << EOF
+module.exports = {
+  apps: [
+    {
+      name: 'cardwise-server',
+      script: 'server/server.js',
+      cwd: '/opt/CardWise',
+      env: {
+        NODE_ENV: 'production',
+        PORT: 3000
+      },
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '1G'
+    }
+  ]
+};
+EOF
+```
+
+Build the client:
+```bash
+cd client
+npm run build
+cd ..
+```
+
+Start with PM2:
+```bash
+pm2 start ecosystem.config.js
+pm2 save
+pm2 startup
+```
+
+#### Option B: Using systemd
+
+Create systemd service file:
+```bash
+sudo cat > /etc/systemd/system/cardwise.service << EOF
+[Unit]
+Description=CardWise Application
+After=network.target mongod.service
+
+[Service]
+Type=simple
+User=$USER
+WorkingDirectory=/opt/CardWise
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/npm start
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+```
+
+Enable and start the service:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable cardwise
+sudo systemctl start cardwise
+```
+
+### 8. Reverse Proxy Setup (Optional)
+
+If you want to serve the application on port 80/443, set up Nginx:
+
+Install Nginx:
+```bash
+sudo apt install nginx -y
+```
+
+Create Nginx configuration:
+```bash
+sudo cat > /etc/nginx/sites-available/cardwise << EOF
+server {
+    listen 80;
+    server_name your-domain.com;  # Replace with your domain
+
+    # Serve static files
+    location / {
+        root /opt/CardWise/client/dist;
+        try_files \$uri \$uri/ /index.html;
+    }
+
+    # Proxy API requests
+    location /api/ {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+    }
+}
+EOF
+```
+
+Enable the site:
+```bash
+sudo ln -s /etc/nginx/sites-available/cardwise /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+```
+
+## Verification
+
+### 1. Check Services
+
+Verify all services are running:
+```bash
+# MongoDB
+sudo systemctl status mongod
+
+# CardWise (if using systemd)
+sudo systemctl status cardwise
+
+# CardWise (if using PM2)
+pm2 status
+
+# Nginx (if configured)
+sudo systemctl status nginx
+```
+
+### 2. Test API Endpoints
+
+Test the application:
+```bash
+# Health check
+curl http://localhost:3000/
+
+# Get collection stats
+curl http://localhost:3000/api/cards/stats
+
+# Check admin user
+mongosh --eval 'use CardWise; db.users.findOne({email: "admin@cardwise.com"})'
+```
+
+### 3. Access Application
+
+- **Direct access**: http://localhost:3000 (if no reverse proxy)
+- **With Nginx**: http://your-domain.com
+- **Client development**: http://localhost:5173 (if running in dev mode)
+
+## Maintenance
+
+### Backup Database
+
+Create regular backups:
+```bash
+# Create backup
+mongodump --db CardWise --out /backup/cardwise-$(date +%Y%m%d)
+
+# Restore backup
+mongorestore --db CardWise /backup/cardwise-20231201/CardWise
+```
+
+### Update Application
+
+To update CardWise:
+```bash
+cd /opt/CardWise
+
+# Stop services
+pm2 stop cardwise-server  # or sudo systemctl stop cardwise
+
+# Update code
+git pull  # or extract new version
+
+# Update dependencies
+npm install
+cd client && npm install && cd ..
+cd server && npm install && cd ..
+
+# Rebuild client
+cd client && npm run build && cd ..
+
+# Restart services
+pm2 start cardwise-server  # or sudo systemctl start cardwise
+```
+
+### Monitor Logs
+
+View application logs:
+```bash
+# PM2 logs
+pm2 logs cardwise-server
+
+# systemd logs
+sudo journalctl -u cardwise -f
+
+# MongoDB logs
+sudo tail -f /var/log/mongodb/mongod.log
+```
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Port Already in Use**
+1. **Port already in use**:
    ```bash
-   # Kill processes on ports 3000 and 5173
-   sudo lsof -ti:3000 | xargs kill -9
-   sudo lsof -ti:5173 | xargs kill -9
+   sudo lsof -i :3000
+   sudo kill -9 <PID>
    ```
 
-2. **MongoDB Connection Failed**
+2. **MongoDB connection failed**:
    ```bash
-   # Start MongoDB service
-   sudo systemctl start mongod
-   
-   # Check MongoDB status
-   sudo systemctl status mongod
+   sudo systemctl restart mongod
+   mongosh --eval 'db.runCommand("ping")'
    ```
 
-3. **Permission Denied on Scripts**
+3. **Permission issues**:
    ```bash
-   chmod +x deploy.sh stop.sh status.sh
+   sudo chown -R $USER:$USER /opt/CardWise
    ```
 
-4. **Node.js Version Issues**
+4. **Node.js version issues**:
    ```bash
-   # Check Node.js version
    node --version
-   
-   # Update Node.js if needed
-   npm install -g n
-   sudo n stable
+   # Update Node.js if version is below 16.0
    ```
 
-### Log Analysis
+### Performance Optimization
 
-Check the log files for detailed error information:
-
-```bash
-# Recent server errors
-tail -n 50 server.log | grep -i error
-
-# Recent client errors  
-tail -n 50 client.log | grep -i error
-```
-
-## Production Deployment
-
-For production deployments, consider:
-
-1. **Use a process manager** like PM2:
+1. **Enable MongoDB indexing**:
    ```bash
-   npm install -g pm2
-   pm2 start server/server.js --name cardwise-server
-   pm2 start "npm run dev" --name cardwise-client --cwd client
+   mongosh CardWise --eval 'db.cards.createIndex({playerName: 1, sport: 1})'
    ```
 
-2. **Set up a reverse proxy** with Nginx
-3. **Use environment-specific configuration files**
-4. **Set up SSL certificates** for HTTPS
-5. **Configure database backups**
-6. **Set up monitoring and logging**
+2. **Configure PM2 clustering**:
+   ```javascript
+   // In ecosystem.config.js
+   instances: 'max'  // Use all CPU cores
+   ```
 
-## Support
+3. **Enable Nginx gzip compression**:
+   ```nginx
+   gzip on;
+   gzip_types text/plain application/json application/javascript text/css;
+   ```
 
-If you encounter issues during deployment:
+## Security Considerations
 
-1. Check the troubleshooting section above
-2. Review the log files for error messages
-3. Ensure all prerequisites are properly installed
-4. Verify MongoDB is running and accessible
+1. **Change default credentials**:
+   - Update admin password after first login
+   - Generate secure JWT secrets
 
-For additional support, please check the application documentation or contact the development team.
+2. **Configure firewall**:
+   ```bash
+   sudo ufw allow 22    # SSH
+   sudo ufw allow 80    # HTTP
+   sudo ufw allow 443   # HTTPS
+   sudo ufw enable
+   ```
+
+3. **Enable MongoDB authentication** (for production):
+   ```bash
+   mongosh --eval 'use admin; db.createUser({user:"admin", pwd:"securepassword", roles:["userAdminAnyDatabase"]})'
+   ```
+
+4. **Use HTTPS in production**:
+   - Configure SSL certificates with Let's Encrypt
+   - Update Nginx configuration for HTTPS
+
+For additional support or issues, refer to the main README.md file or create an issue in the project repository.

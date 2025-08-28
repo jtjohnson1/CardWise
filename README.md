@@ -1,230 +1,218 @@
-# CardWise - Digital Card Collection Management
+# CardWise
 
-CardWise is a locally-running digital card management application that allows users to organize, track, and manage their sports card collections with AI-powered image processing and real-time market pricing.
+CardWise is a locally-running digital card management application that allows users to organize, track, and manage their sports card collections. The app leverages AI-powered image processing to automatically identify and catalog cards from scanned images, providing comprehensive collection management with real-time market pricing.
 
 ## Features
 
-- **Digital Card Management**: Organize and catalog your sports card collection
-- **AI-Powered Scanning**: Automatic card identification from scanned images
-- **Market Pricing**: Real-time pricing data integration
-- **Collection Analytics**: Detailed insights and statistics
-- **Trade Management**: Wishlist and trade list functionality
-- **Local Storage**: All data stored locally with MongoDB
+- **AI-Powered Card Scanning**: Automatically identify and catalog cards using Ollama AI
+- **Collection Management**: Organize, search, and filter your card collection
+- **Real-time Pricing**: Integration with eBay and TCGPlayer APIs for market pricing
+- **Wishlist Management**: Track cards you want to acquire
+- **Trade Lists**: Manage cards available for trading
+- **Analytics Dashboard**: Insights into your collection's value and trends
+- **Local Database**: All data stored locally using MongoDB
 
 ## Prerequisites
 
-- Node.js 16 or higher
-- MongoDB 4.4 or higher
-- Git
+Before running CardWise, ensure you have the following installed:
 
-## Quick Start
+- **Node.js** (v16 or higher)
+- **npm** (v8 or higher)
+- **MongoDB** (running locally on port 27017)
+- **Ollama** (optional, for AI card scanning)
 
-### Development Mode (with mock data)
+## Installation
 
+1. Clone the repository:
 ```bash
-# Clone the repository
 git clone <repository-url>
 cd CardWise
+```
 
-# Install dependencies
-npm install
+2. Install all dependencies:
+```bash
+npm run install-all
+```
 
-# Start in development mode
+3. Set up environment variables:
+```bash
+cp .env.example .env
+# Edit .env with your configuration
+```
+
+4. Start MongoDB:
+```bash
+# On Ubuntu/Debian:
+sudo systemctl start mongod
+
+# On macOS with Homebrew:
+brew services start mongodb-community
+
+# Or run directly:
+mongod
+```
+
+5. (Optional) Start Ollama for AI scanning:
+```bash
+ollama serve
+ollama pull llava:latest
+```
+
+## Usage
+
+### Development Mode
+
+Start both client and server in development mode:
+
+```bash
 npm start
 ```
 
-The application will be available at:
-- Frontend: http://localhost:5173
-- Backend: http://localhost:3000
+This will start:
+- Client (React + Vite) on http://localhost:5173
+- Server (Express + MongoDB) on http://localhost:3000
 
-### Production Mode (with real API calls)
+### Individual Services
 
+Start only the client:
 ```bash
-# Deploy in production mode
-chmod +x deploy.sh
-./deploy.sh
+npm run client
 ```
 
-This will:
-- Install all dependencies
-- Configure production environment
-- Enable real API calls (disable mock data)
-- Build and start the application
-- Create log files for monitoring
-
-### Managing the Application
-
-#### Check Status
+Start only the server:
 ```bash
-./status.sh
+npm run server
 ```
 
-#### Stop the Application
+### Building for Production
+
+Build the client for production:
 ```bash
-./stop.sh
-```
-
-#### View Logs
-```bash
-# Server logs
-tail -f server.log
-
-# Client logs
-tail -f client.log
-```
-
-## Project Structure
-
-```
-CardWise/
-├── client/                 # React frontend
-│   ├── src/
-│   │   ├── api/           # API integration layer
-│   │   ├── components/    # React components
-│   │   ├── pages/         # Page components
-│   │   └── hooks/         # Custom hooks
-│   └── dist/              # Built frontend (production)
-├── server/                # Express backend
-│   ├── models/           # MongoDB models
-│   ├── routes/           # API routes
-│   ├── services/         # Business logic
-│   └── utils/            # Utility functions
-├── deploy.sh             # Production deployment script
-├── status.sh             # Status check script
-└── stop.sh               # Stop application script
+npm run build
 ```
 
 ## API Endpoints
 
-### Cards
+### Seeding Data
+
+Seed the database with initial admin user:
+```bash
+curl -X POST http://localhost:3000/api/seed/admin
+```
+
+Seed the database with sample cards:
+```bash
+curl -X POST http://localhost:3000/api/seed/cards
+```
+
+### Cards Management
+
 - `GET /api/cards` - Get all cards
-- `GET /api/cards/:id` - Get single card
+- `GET /api/cards/stats` - Get collection statistics
+- `GET /api/cards/:id` - Get specific card
 - `POST /api/cards` - Create new card
 - `PUT /api/cards/:id` - Update card
 - `DELETE /api/cards/:id` - Delete card
-- `GET /api/cards/stats` - Get collection statistics
 
 ### Scanning
-- `POST /api/scan/start` - Start scan job
-- `GET /api/scan/jobs` - Get scan jobs
+
+- `POST /api/scan/start` - Start new scan job
+- `GET /api/scan/jobs` - Get all scan jobs
 - `GET /api/scan/progress/:jobId` - Get scan progress
 - `POST /api/scan/pause/:jobId` - Pause scan job
 - `POST /api/scan/resume/:jobId` - Resume scan job
 
 ### Settings
+
 - `GET/POST /api/settings/ebay` - eBay API configuration
 - `GET/POST /api/settings/tcgplayer` - TCGPlayer API configuration
 - `GET/POST /api/settings/notifications` - Notification preferences
 - `GET/POST /api/settings/scanning` - Scanning preferences
 
-### Database Seeding
-- `POST /api/seed/admin` - Create admin user
-- `POST /api/seed/cards` - Create sample cards
+## Configuration
 
-## Environment Configuration
+### Database
 
-Create `server/.env` with:
+CardWise uses MongoDB with the database name `CardWise`. The connection string is configured in the `.env` file:
 
-```env
-PORT=3000
-DATABASE_URL=mongodb://localhost/CardWise
-JWT_SECRET=your-jwt-secret
-REFRESH_TOKEN_SECRET=your-refresh-secret
-NODE_ENV=production
+```
+DATABASE_URL=mongodb://localhost:27017/CardWise
 ```
 
-## Development vs Production
+### AI Scanning
 
-### Development Mode
-- Uses mock data for API responses
-- Hot reloading enabled
-- Detailed error messages
-- Development server (Vite)
+For AI-powered card scanning, configure Ollama:
 
-### Production Mode
-- Real API calls to backend
-- Optimized build
-- Production error handling
-- Static file serving
-
-## Database Schema
-
-### User Model
-```javascript
-{
-  email: String,
-  password: String (hashed),
-  firstName: String,
-  lastName: String,
-  role: String (admin/user),
-  preferences: Object
-}
+```
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_MODEL=llava:latest
 ```
 
-### Card Model
-```javascript
-{
-  playerName: String,
-  sport: String,
-  year: Number,
-  manufacturer: String,
-  setName: String,
-  cardNumber: String,
-  frontImage: String,
-  backImage: String,
-  condition: Object,
-  estimatedValue: Number,
-  tags: [String],
-  userId: ObjectId
-}
-```
+### API Integrations
+
+Configure eBay and TCGPlayer API credentials in the application settings or environment variables.
 
 ## Troubleshooting
 
-### Common Issues
+### MongoDB Connection Issues
 
-1. **MongoDB Connection Failed**
-   ```bash
-   # Start MongoDB
-   sudo systemctl start mongod
-   # or on macOS
-   brew services start mongodb-community
-   ```
+1. Ensure MongoDB is running:
+```bash
+sudo systemctl status mongod
+```
 
-2. **Port Already in Use**
-   ```bash
-   # Kill processes on ports 3000 and 5173
-   ./stop.sh
-   ```
+2. Check if the database exists:
+```bash
+mongosh --eval 'show dbs'
+```
 
-3. **Dependencies Issues**
-   ```bash
-   # Clean install
-   rm -rf node_modules client/node_modules server/node_modules
-   npm install
-   ```
+3. Create the database if needed:
+```bash
+mongosh --eval 'use CardWise; db.createCollection("users")'
+```
 
-4. **API Calls Not Working**
-   - Ensure you're running in production mode: `./deploy.sh`
-   - Check server logs: `tail -f server.log`
-   - Verify backend is running: `curl http://localhost:3000/api/seed/admin`
+### Ollama Issues
 
-## Contributing
+1. Check if Ollama is running:
+```bash
+curl http://localhost:11434/api/tags
+```
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test in both development and production modes
-5. Submit a pull request
+2. Install the required model:
+```bash
+ollama pull llava:latest
+```
+
+### Port Conflicts
+
+If ports 3000 or 5173 are in use, update the configuration:
+- Server port: Change `PORT` in `.env`
+- Client port: Update `vite.config.ts`
+
+## Development
+
+### Project Structure
+
+```
+CardWise/
+├── client/          # React frontend
+├── server/          # Express backend
+├── scripts/         # Build and deployment scripts
+├── package.json     # Root package configuration
+└── README.md        # This file
+```
+
+### Adding New Features
+
+1. Backend changes go in `server/`
+2. Frontend changes go in `client/`
+3. API endpoints should be added to `server/routes/`
+4. Database models go in `server/models/`
 
 ## License
 
-This project is licensed under the MIT License.
+MIT License - see LICENSE file for details.
 
 ## Support
 
-For support and questions:
-- Check the logs: `server.log` and `client.log`
-- Run status check: `./status.sh`
-- Review API documentation above
-- Check MongoDB connection and status
+For issues and questions, please check the troubleshooting section or create an issue in the repository.
