@@ -61,7 +61,7 @@ const initializeDatabase = async () => {
   try {
     console.log('[PERFORMANCE] Starting database initialization...');
     const startTime = Date.now();
-    
+
     await connectDB();
     console.log(`[PERFORMANCE] Database connection took ${Date.now() - startTime}ms`);
 
@@ -98,12 +98,32 @@ app.on("error", (error) => {
   console.error(error.stack);
 });
 
-// Routes
+// Routes - Add logging for route registration
+console.log('[PERFORMANCE] Registering routes...');
+console.log('[PERFORMANCE] Registering basicRoutes...');
 app.use(basicRoutes);
+
+console.log('[PERFORMANCE] Registering seedRoutes...');
 app.use(seedRoutes);
+
+console.log('[PERFORMANCE] Registering settingsRoutes...');
 app.use(settingsRoutes);
+
+console.log('[PERFORMANCE] Registering cardRoutes...');
 app.use(cardRoutes);
+
+console.log('[PERFORMANCE] Registering scanRoutes...');
+console.log('[PERFORMANCE] scanRoutes module type:', typeof scanRoutes);
+console.log('[PERFORMANCE] scanRoutes module:', scanRoutes);
 app.use(scanRoutes);
+
+console.log('[PERFORMANCE] All routes registered');
+
+// Add middleware to log all incoming requests
+app.use('*', (req, res, next) => {
+  console.log(`[PERFORMANCE] Unmatched request: ${req.method} ${req.originalUrl}`);
+  next();
+});
 
 // If no routes handled the request, it's a 404
 app.use((req, res, next) => {
@@ -118,7 +138,10 @@ app.use((req, res, next) => {
 app.use((err, req, res, next) => {
   console.error(`[PERFORMANCE] Unhandled application error: ${err.message}`);
   console.error('[PERFORMANCE] Error stack:', err.stack);
-  
+  console.error('[PERFORMANCE] Request URL:', req.url);
+  console.error('[PERFORMANCE] Request method:', req.method);
+  console.error('[PERFORMANCE] Request headers:', JSON.stringify(req.headers));
+
   // Always return JSON error responses for API endpoints
   if (req.url.startsWith('/api/')) {
     res.status(500).json({
