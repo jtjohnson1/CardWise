@@ -10,6 +10,47 @@ console.log('[SCAN_ROUTES] scanRoutes module loading...');
 let scanJobs = [];
 
 /**
+ * Helper function to get or create admin user
+ */
+async function getOrCreateAdminUser() {
+  try {
+    // First try to find existing admin user
+    let adminUser = await User.findOne({ email: 'admin@cardwise.com' });
+    
+    if (!adminUser) {
+      console.log('Admin user not found, creating one...');
+      // Create admin user if it doesn't exist
+      const { hashPassword } = require('../utils/password');
+      const hashedPassword = await hashPassword('admin123');
+      
+      adminUser = new User({
+        email: 'admin@cardwise.com',
+        password: hashedPassword,
+        firstName: 'Admin',
+        lastName: 'User',
+        role: 'admin',
+        isActive: true,
+        preferences: {
+          theme: 'light',
+          notifications: {
+            email: true,
+            push: true
+          }
+        }
+      });
+      
+      adminUser = await adminUser.save();
+      console.log('Admin user created successfully');
+    }
+    
+    return adminUser;
+  } catch (error) {
+    console.error('Error getting/creating admin user:', error.message);
+    throw error;
+  }
+}
+
+/**
  * POST /api/scan/start
  * Start a new card scanning job using Ollama AI
  */
@@ -46,14 +87,8 @@ router.post('/api/scan/start', async (req, res) => {
       });
     }
 
-    // Get admin user for card ownership
-    const adminUser = await User.findOne({ email: 'admin@cardwise.com' });
-    if (!adminUser) {
-      return res.status(500).json({
-        success: false,
-        error: 'Admin user not found'
-      });
-    }
+    // Get or create admin user for card ownership
+    const adminUser = await getOrCreateAdminUser();
 
     const jobId = 'scan_' + Date.now();
     const newJob = {
