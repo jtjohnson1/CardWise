@@ -32,9 +32,15 @@ export interface ScanProgress {
 // Response: { success: boolean, message: string, jobId: string, job: ScanJob }
 export const startScanJob = async (jobData: { jobName: string; folderPath: string; settings?: any }) => {
   try {
+    console.log('[API] startScanJob called with data:', JSON.stringify(jobData));
+    console.log('[API] About to make POST request to /api/scan/start');
     const response = await api.post('/api/scan/start', jobData);
+    console.log('[API] startScanJob response:', response.data);
     return response.data;
   } catch (error: any) {
+    console.error('[API] startScanJob error:', error);
+    console.error('[API] Error response data:', error?.response?.data);
+    console.error('[API] Error message:', error.message);
     throw new Error(error?.response?.data?.error || error.message);
   }
 };
@@ -45,9 +51,12 @@ export const startScanJob = async (jobData: { jobName: string; folderPath: strin
 // Response: { success: boolean, jobs: ScanJob[] }
 export const getScanJobs = async () => {
   try {
+    console.log('[API] getScanJobs called');
     const response = await api.get('/api/scan/jobs');
+    console.log('[API] getScanJobs response:', response.data);
     return response.data;
   } catch (error: any) {
+    console.error('[API] getScanJobs error:', error);
     throw new Error(error?.response?.data?.error || error.message);
   }
 };
@@ -66,9 +75,12 @@ export const getRecentScanJobs = async () => {
 // Response: { success: boolean, progress: ScanProgress }
 export const getScanProgress = async (jobId: string) => {
   try {
+    console.log('[API] getScanProgress called for jobId:', jobId);
     const response = await api.get(`/api/scan/progress/${jobId}`);
+    console.log('[API] getScanProgress response:', response.data);
     return response.data;
   } catch (error: any) {
+    console.error('[API] getScanProgress error:', error);
     throw new Error(error?.response?.data?.error || error.message);
   }
 };
@@ -87,9 +99,12 @@ export const getScanJobStatus = async (jobId: string) => {
 // Response: { success: boolean, message: string }
 export const pauseScanJob = async (jobId: string) => {
   try {
+    console.log('[API] pauseScanJob called for jobId:', jobId);
     const response = await api.post(`/api/scan/pause/${jobId}`);
+    console.log('[API] pauseScanJob response:', response.data);
     return response.data;
   } catch (error: any) {
+    console.error('[API] pauseScanJob error:', error);
     throw new Error(error?.response?.data?.error || error.message);
   }
 };
@@ -100,9 +115,12 @@ export const pauseScanJob = async (jobId: string) => {
 // Response: { success: boolean, message: string }
 export const resumeScanJob = async (jobId: string) => {
   try {
+    console.log('[API] resumeScanJob called for jobId:', jobId);
     const response = await api.post(`/api/scan/resume/${jobId}`);
+    console.log('[API] resumeScanJob response:', response.data);
     return response.data;
   } catch (error: any) {
+    console.error('[API] resumeScanJob error:', error);
     throw new Error(error?.response?.data?.error || error.message);
   }
 };
@@ -112,12 +130,15 @@ export const resumeScanJob = async (jobId: string) => {
 // Request: { jobId: string, currentStatus: string }
 // Response: { success: boolean, message: string }
 export const pauseResumeJob = async (jobId: string, currentStatus: string) => {
+  console.log('[API] pauseResumeJob called with jobId:', jobId, 'currentStatus:', currentStatus);
   if (currentStatus === 'processing') {
     return pauseScanJob(jobId);
   } else if (currentStatus === 'paused') {
     return resumeScanJob(jobId);
   } else {
-    throw new Error(`Cannot pause/resume job with status: ${currentStatus}`);
+    const errorMsg = `Cannot pause/resume job with status: ${currentStatus}`;
+    console.error('[API] pauseResumeJob error:', errorMsg);
+    throw new Error(errorMsg);
   }
 };
 
@@ -127,9 +148,12 @@ export const pauseResumeJob = async (jobId: string, currentStatus: string) => {
 // Response: { success: boolean, message: string }
 export const cancelScanJob = async (jobId: string) => {
   try {
+    console.log('[API] cancelScanJob called for jobId:', jobId);
     const response = await api.post(`/api/scan/cancel/${jobId}`);
+    console.log('[API] cancelScanJob response:', response.data);
     return response.data;
   } catch (error: any) {
+    console.error('[API] cancelScanJob error:', error);
     throw new Error(error?.response?.data?.error || error.message);
   }
 };
