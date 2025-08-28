@@ -1,5 +1,5 @@
-// Load environment variables
-require("dotenv").config();
+// Load environment variables from parent directory
+require("dotenv").config({ path: '../.env' });
 const mongoose = require("mongoose");
 const express = require("express");
 const session = require("express-session");
@@ -12,6 +12,11 @@ const scanRoutes = require("./routes/scanRoutes");
 const { connectDB } = require("./config/database");
 const { seedAdminUser, seedSampleCards } = require("./services/seedService");
 const cors = require("cors");
+
+console.log('[ENV] Loading environment variables...');
+console.log('[ENV] DATABASE_URL:', process.env.DATABASE_URL);
+console.log('[ENV] OLLAMA_HOST:', process.env.OLLAMA_HOST);
+console.log('[ENV] PORT:', process.env.PORT);
 
 if (!process.env.DATABASE_URL) {
   console.error("Error: DATABASE_URL variables in .env missing.");

@@ -1,56 +1,23 @@
 const express = require('express');
+const Card = require('../models/Card');
+const User = require('../models/User');
+const ollamaService = require('../services/ollamaService');
 const router = express.Router();
 
 console.log('[SCAN_ROUTES] scanRoutes module loading...');
 
-// Mock scan jobs data
-let scanJobs = [
-  {
-    _id: 'job1',
-    jobName: 'Baseball Cards Lot 1',
-    status: 'completed',
-    totalCards: 50,
-    processedCards: 50,
-    failedCards: 0,
-    createdAt: '2024-01-15T10:30:00Z',
-    updatedAt: '2024-01-15T11:45:00Z',
-    userId: 'admin',
-    settings: {
-      confidenceThreshold: 0.8,
-      autoProcess: true,
-      imageQuality: 'high'
-    }
-  },
-  {
-    _id: 'job2',
-    jobName: 'Basketball Cards Lot 2',
-    status: 'processing',
-    totalCards: 25,
-    processedCards: 15,
-    failedCards: 1,
-    createdAt: '2024-01-16T09:15:00Z',
-    updatedAt: '2024-01-16T09:45:00Z',
-    userId: 'admin',
-    settings: {
-      confidenceThreshold: 0.8,
-      autoProcess: true,
-      imageQuality: 'high'
-    }
-  }
-];
-
-console.log('[SCAN_ROUTES] Mock scan jobs initialized:', scanJobs.length, 'jobs');
+// In-memory storage for scan jobs
+let scanJobs = [];
 
 /**
  * POST /api/scan/start
- * Start a new card scanning job
+ * Start a new card scanning job using Ollama AI
  */
-router.post('/api/scan/start', (req, res) => {
+router.post('/api/scan/start', async (req, res) => {
   try {
     console.log('[SCAN_ROUTES] POST /api/scan/start - Starting new scan job');
     console.log('[SCAN_ROUTES] Request body:', JSON.stringify(req.body));
-    console.log('[SCAN_ROUTES] Request headers:', JSON.stringify(req.headers));
-    
+
     const { jobName, folderPath, settings } = req.body;
 
     if (!jobName) {
@@ -61,17 +28,45 @@ router.post('/api/scan/start', (req, res) => {
       });
     }
 
+    if (!folderPath) {
+      console.log('[SCAN_ROUTES] Validation failed: folderPath is required');
+      return res.status(400).json({
+        success: false,
+        error: 'Folder path is required'
+      });
+    }
+
+    // Test Ollama connection first
+    console.log('[SCAN_ROUTES] Testing Ollama connection...');
+    const ollamaConnected = await ollamaService.testConnection();
+    if (!ollamaConnected) {
+      return res.status(500).json({
+        success: false,
+        error: 'Cannot connect to Ollama service. Please ensure Ollama is running.'
+      });
+    }
+
+    // Get admin user for card ownership
+    const adminUser = await User.findOne({ email: 'admin@cardwise.com' });
+    if (!adminUser) {
+      return res.status(500).json({
+        success: false,
+        error: 'Admin user not found'
+      });
+    }
+
     const jobId = 'scan_' + Date.now();
     const newJob = {
       _id: jobId,
       jobName: jobName,
-      status: 'pending',
-      totalCards: 25,
+      status: 'processing',
+      totalCards: 0,
       processedCards: 0,
       failedCards: 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      userId: 'admin',
+      userId: adminUser._id,
+      folderPath: folderPath,
       settings: {
         confidenceThreshold: settings?.confidenceThreshold || 0.8,
         autoProcess: settings?.autoProcess || true,
@@ -82,12 +77,17 @@ router.post('/api/scan/start', (req, res) => {
     scanJobs.push(newJob);
 
     console.log(`[SCAN_ROUTES] Created new scan job: ${jobName} with ID: ${jobId}`);
+
+    // Start processing in background
+    processCardScanJob(jobId, folderPath, adminUser._id, settings);
+
     res.status(200).json({
       success: true,
       message: 'Scan job started successfully',
       jobId: jobId,
       job: newJob
     });
+
   } catch (error) {
     console.error('[SCAN_ROUTES] Error starting scan job:', error.message);
     console.error('[SCAN_ROUTES] Error stack:', error.stack);
@@ -97,6 +97,88 @@ router.post('/api/scan/start', (req, res) => {
     });
   }
 });
+
+/**
+ * Background processing function for card scanning
+ */
+async function processCardScanJob(jobId, folderPath, userId, settings) {
+  try {
+    console.log(`[SCAN_PROCESSING] Starting background processing for job ${jobId}`);
+    
+    const job = scanJobs.find(j => j._id === jobId);
+    if (!job) {
+      console.error(`[SCAN_PROCESSING] Job ${jobId} not found`);
+      return;
+    }
+
+    // Process cards using Ollama
+    const results = await ollamaService.processCardFolder(folderPath, (processed, total) => {
+      // Update progress
+      job.processedCards = processed;
+      job.totalCards = total;
+      job.updatedAt = new Date().toISOString();
+      console.log(`[SCAN_PROCESSING] Job ${jobId} progress: ${processed}/${total}`);
+    });
+
+    let successCount = 0;
+    let failureCount = 0;
+
+    // Save successful card analyses to database
+    for (const result of results) {
+      if (result.success && result.cardData) {
+        try {
+          // Only save cards that meet confidence threshold
+          const confidence = result.cardData.confidence || 0;
+          if (confidence >= (settings?.confidenceThreshold || 0.8)) {
+            
+            const cardData = {
+              ...result.cardData,
+              userId: userId,
+              lotNumber: job.jobName,
+              tags: [job.jobName, 'scanned'],
+              notes: `Scanned from ${folderPath} with confidence ${confidence}`
+            };
+
+            // Remove confidence field as it's not in the Card schema
+            delete cardData.confidence;
+
+            const card = new Card(cardData);
+            await card.save();
+            
+            console.log(`[SCAN_PROCESSING] Saved card: ${result.cardData.playerName}`);
+            successCount++;
+          } else {
+            console.log(`[SCAN_PROCESSING] Skipped card ${result.imageFile} due to low confidence: ${confidence}`);
+            failureCount++;
+          }
+        } catch (saveError) {
+          console.error(`[SCAN_PROCESSING] Error saving card from ${result.imageFile}:`, saveError.message);
+          failureCount++;
+        }
+      } else {
+        failureCount++;
+      }
+    }
+
+    // Update job status
+    job.status = 'completed';
+    job.processedCards = results.length;
+    job.failedCards = failureCount;
+    job.updatedAt = new Date().toISOString();
+
+    console.log(`[SCAN_PROCESSING] Job ${jobId} completed. Success: ${successCount}, Failed: ${failureCount}`);
+
+  } catch (error) {
+    console.error(`[SCAN_PROCESSING] Error processing job ${jobId}:`, error.message);
+    
+    // Update job status to failed
+    const job = scanJobs.find(j => j._id === jobId);
+    if (job) {
+      job.status = 'failed';
+      job.updatedAt = new Date().toISOString();
+    }
+  }
+}
 
 /**
  * GET /api/scan/jobs
@@ -147,8 +229,10 @@ router.get('/api/scan/progress/:jobId', (req, res) => {
         currentCard: job.processedCards,
         totalCards: job.totalCards,
         status: job.status,
-        processingTime: 300,
-        estimatedTimeRemaining: job.status === 'processing' ? 200 : 0
+        processingTime: Math.floor((new Date() - new Date(job.createdAt)) / 1000),
+        estimatedTimeRemaining: job.status === 'processing' && job.totalCards > 0 
+          ? Math.floor(((new Date() - new Date(job.createdAt)) / job.processedCards) * (job.totalCards - job.processedCards) / 1000)
+          : 0
       }
     });
   } catch (error) {
