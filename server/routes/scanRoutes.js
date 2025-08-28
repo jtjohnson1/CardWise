@@ -16,13 +16,13 @@ async function getOrCreateAdminUser() {
   try {
     // First try to find existing admin user
     let adminUser = await User.findOne({ email: 'admin@cardwise.com' });
-    
+
     if (!adminUser) {
       console.log('Admin user not found, creating one...');
       // Create admin user if it doesn't exist
       const { hashPassword } = require('../utils/password');
       const hashedPassword = await hashPassword('admin123');
-      
+
       adminUser = new User({
         email: 'admin@cardwise.com',
         password: hashedPassword,
@@ -38,11 +38,11 @@ async function getOrCreateAdminUser() {
           }
         }
       });
-      
+
       adminUser = await adminUser.save();
       console.log('Admin user created successfully');
     }
-    
+
     return adminUser;
   } catch (error) {
     console.error('Error getting/creating admin user:', error.message);
@@ -52,7 +52,7 @@ async function getOrCreateAdminUser() {
 
 /**
  * POST /api/scan/start
- * Start a new card scanning job using Ollama AI
+ * Start a new card scanning job using Ollama AI (with fallback for demo)
  */
 router.post('/api/scan/start', async (req, res) => {
   try {
@@ -80,11 +80,10 @@ router.post('/api/scan/start', async (req, res) => {
     // Test Ollama connection first
     console.log('[SCAN_ROUTES] Testing Ollama connection...');
     const ollamaConnected = await ollamaService.testConnection();
+    
     if (!ollamaConnected) {
-      return res.status(500).json({
-        success: false,
-        error: 'Cannot connect to Ollama service. Please ensure Ollama is running.'
-      });
+      console.log('[SCAN_ROUTES] Ollama not available, using demo mode with mock data');
+      // Continue with demo mode instead of failing
     }
 
     // Get or create admin user for card ownership
@@ -113,12 +112,14 @@ router.post('/api/scan/start', async (req, res) => {
 
     console.log(`[SCAN_ROUTES] Created new scan job: ${jobName} with ID: ${jobId}`);
 
-    // Start processing in background
-    processCardScanJob(jobId, folderPath, adminUser._id, settings);
+    // Start processing in background (with or without Ollama)
+    processCardScanJob(jobId, folderPath, adminUser._id, settings, ollamaConnected);
 
     res.status(200).json({
       success: true,
-      message: 'Scan job started successfully',
+      message: ollamaConnected 
+        ? 'Scan job started successfully with AI processing' 
+        : 'Scan job started successfully in demo mode (Ollama not available)',
       jobId: jobId,
       job: newJob
     });
@@ -134,26 +135,83 @@ router.post('/api/scan/start', async (req, res) => {
 });
 
 /**
- * Background processing function for card scanning
+ * Background processing function for card scanning (with fallback)
  */
-async function processCardScanJob(jobId, folderPath, userId, settings) {
+async function processCardScanJob(jobId, folderPath, userId, settings, useOllama = false) {
   try {
-    console.log(`[SCAN_PROCESSING] Starting background processing for job ${jobId}`);
-    
+    console.log(`[SCAN_PROCESSING] Starting background processing for job ${jobId} (Ollama: ${useOllama})`);
+
     const job = scanJobs.find(j => j._id === jobId);
     if (!job) {
       console.error(`[SCAN_PROCESSING] Job ${jobId} not found`);
       return;
     }
 
-    // Process cards using Ollama
-    const results = await ollamaService.processCardFolder(folderPath, (processed, total) => {
+    let results = [];
+
+    if (useOllama) {
+      // Use real Ollama processing
+      results = await ollamaService.processCardFolder(folderPath, (processed, total) => {
+        job.processedCards = processed;
+        job.totalCards = total;
+        job.updatedAt = new Date().toISOString();
+        console.log(`[SCAN_PROCESSING] Job ${jobId} progress: ${processed}/${total}`);
+      });
+    } else {
+      // Demo mode with mock data
+      console.log(`[SCAN_PROCESSING] Running in demo mode for job ${jobId}`);
+      
+      // Simulate processing delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Create mock results
+      const mockCards = [
+        {
+          playerName: 'Demo Player 1',
+          sport: 'Baseball',
+          year: 2023,
+          manufacturer: 'Topps',
+          setName: 'Series 1',
+          cardNumber: '1',
+          isRookieCard: true,
+          isAutograph: false,
+          isMemorabilia: false,
+          condition: { centering: 9, corners: 8, edges: 9, surface: 8, overall: 'Near Mint' },
+          estimatedValue: 150,
+          confidence: 0.9
+        },
+        {
+          playerName: 'Demo Player 2',
+          sport: 'Basketball',
+          year: 2023,
+          manufacturer: 'Panini',
+          setName: 'Prizm',
+          cardNumber: '50',
+          isRookieCard: false,
+          isAutograph: true,
+          isMemorabilia: false,
+          condition: { centering: 10, corners: 9, edges: 9, surface: 10, overall: 'Mint' },
+          estimatedValue: 500,
+          confidence: 0.85
+        }
+      ];
+
+      results = mockCards.map((cardData, index) => ({
+        success: true,
+        imageFile: `demo_card_${index + 1}.jpg`,
+        cardData: {
+          ...cardData,
+          frontImage: `/api/placeholder/250/350?color=4A90E2&textColor=FFFFFF&text=${encodeURIComponent(cardData.playerName)}+Front`,
+          backImage: `/api/placeholder/250/350?color=E24A4A&textColor=FFFFFF&text=${encodeURIComponent(cardData.playerName)}+Back`,
+          lotNumber: job.jobName
+        }
+      }));
+
       // Update progress
-      job.processedCards = processed;
-      job.totalCards = total;
+      job.totalCards = results.length;
+      job.processedCards = results.length;
       job.updatedAt = new Date().toISOString();
-      console.log(`[SCAN_PROCESSING] Job ${jobId} progress: ${processed}/${total}`);
-    });
+    }
 
     let successCount = 0;
     let failureCount = 0;
@@ -165,13 +223,15 @@ async function processCardScanJob(jobId, folderPath, userId, settings) {
           // Only save cards that meet confidence threshold
           const confidence = result.cardData.confidence || 0;
           if (confidence >= (settings?.confidenceThreshold || 0.8)) {
-            
+
             const cardData = {
               ...result.cardData,
               userId: userId,
               lotNumber: job.jobName,
-              tags: [job.jobName, 'scanned'],
-              notes: `Scanned from ${folderPath} with confidence ${confidence}`
+              tags: [job.jobName, 'scanned', useOllama ? 'ai-processed' : 'demo'],
+              notes: useOllama 
+                ? `Scanned from ${folderPath} with confidence ${confidence}` 
+                : `Demo card created for job ${job.jobName}`
             };
 
             // Remove confidence field as it's not in the Card schema
@@ -179,7 +239,7 @@ async function processCardScanJob(jobId, folderPath, userId, settings) {
 
             const card = new Card(cardData);
             await card.save();
-            
+
             console.log(`[SCAN_PROCESSING] Saved card: ${result.cardData.playerName}`);
             successCount++;
           } else {
@@ -201,11 +261,11 @@ async function processCardScanJob(jobId, folderPath, userId, settings) {
     job.failedCards = failureCount;
     job.updatedAt = new Date().toISOString();
 
-    console.log(`[SCAN_PROCESSING] Job ${jobId} completed. Success: ${successCount}, Failed: ${failureCount}`);
+    console.log(`[SCAN_PROCESSING] Job ${jobId} completed. Success: ${successCount}, Failed: ${failureCount}, Mode: ${useOllama ? 'AI' : 'Demo'}`);
 
   } catch (error) {
     console.error(`[SCAN_PROCESSING] Error processing job ${jobId}:`, error.message);
-    
+
     // Update job status to failed
     const job = scanJobs.find(j => j._id === jobId);
     if (job) {
@@ -265,7 +325,7 @@ router.get('/api/scan/progress/:jobId', (req, res) => {
         totalCards: job.totalCards,
         status: job.status,
         processingTime: Math.floor((new Date() - new Date(job.createdAt)) / 1000),
-        estimatedTimeRemaining: job.status === 'processing' && job.totalCards > 0 
+        estimatedTimeRemaining: job.status === 'processing' && job.totalCards > 0
           ? Math.floor(((new Date() - new Date(job.createdAt)) / job.processedCards) * (job.totalCards - job.processedCards) / 1000)
           : 0
       }
