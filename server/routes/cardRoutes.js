@@ -5,6 +5,60 @@ const User = require('../models/User');
 const router = express.Router();
 
 /**
+ * GET /api/cards/stats
+ * Get collection statistics
+ * NOTE: This route must come BEFORE /api/cards/:id to avoid route conflicts
+ */
+router.get('/api/cards/stats', async (req, res) => {
+  try {
+    console.log('GET /api/cards/stats - Fetching collection statistics');
+    
+    // For now, get admin user's cards since we don't have authentication
+    const adminUser = await User.findOne({ email: 'admin@cardwise.com' });
+    if (!adminUser) {
+      return res.status(404).json({
+        success: false,
+        error: 'Admin user not found'
+      });
+    }
+
+    const totalCards = await Card.countDocuments({ userId: adminUser._id });
+    const totalValue = await Card.aggregate([
+      { $match: { userId: adminUser._id } },
+      { $group: { _id: null, total: { $sum: '$estimatedValue' } } }
+    ]);
+
+    const recentCards = await Card.find({ userId: adminUser._id })
+      .sort({ createdAt: -1 })
+      .limit(5);
+
+    const sportBreakdown = await Card.aggregate([
+      { $match: { userId: adminUser._id } },
+      { $group: { _id: '$sport', count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+
+    console.log(`Collection stats: ${totalCards} cards, $${totalValue[0]?.total || 0} total value`);
+
+    res.status(200).json({
+      success: true,
+      stats: {
+        totalCards,
+        totalValue: totalValue[0]?.total || 0,
+        recentCards,
+        sportBreakdown
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching collection statistics:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch collection statistics'
+    });
+  }
+});
+
+/**
  * GET /api/cards
  * Get all cards for the current user
  */
@@ -40,6 +94,7 @@ router.get('/api/cards', async (req, res) => {
 /**
  * GET /api/cards/:id
  * Get a specific card by ID
+ * NOTE: This route must come AFTER specific routes like /api/cards/stats
  */
 router.get('/api/cards/:id', async (req, res) => {
   try {
@@ -167,59 +222,6 @@ router.delete('/api/cards/:id', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to delete card'
-    });
-  }
-});
-
-/**
- * GET /api/cards/stats
- * Get collection statistics
- */
-router.get('/api/cards/stats', async (req, res) => {
-  try {
-    console.log('GET /api/cards/stats - Fetching collection statistics');
-    
-    // For now, get admin user's cards since we don't have authentication
-    const adminUser = await User.findOne({ email: 'admin@cardwise.com' });
-    if (!adminUser) {
-      return res.status(404).json({
-        success: false,
-        error: 'Admin user not found'
-      });
-    }
-
-    const totalCards = await Card.countDocuments({ userId: adminUser._id });
-    const totalValue = await Card.aggregate([
-      { $match: { userId: adminUser._id } },
-      { $group: { _id: null, total: { $sum: '$estimatedValue' } } }
-    ]);
-
-    const recentCards = await Card.find({ userId: adminUser._id })
-      .sort({ createdAt: -1 })
-      .limit(5);
-
-    const sportBreakdown = await Card.aggregate([
-      { $match: { userId: adminUser._id } },
-      { $group: { _id: '$sport', count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
-    ]);
-
-    console.log(`Collection stats: ${totalCards} cards, $${totalValue[0]?.total || 0} total value`);
-
-    res.status(200).json({
-      success: true,
-      stats: {
-        totalCards,
-        totalValue: totalValue[0]?.total || 0,
-        recentCards,
-        sportBreakdown
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching collection statistics:', error.message);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch collection statistics'
     });
   }
 });
