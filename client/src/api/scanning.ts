@@ -31,41 +31,12 @@ export interface ScanProgress {
 // Request: { jobName: string, folderPath: string, settings?: object }
 // Response: { success: boolean, message: string, jobId: string, job: ScanJob }
 export const startScanJob = async (jobData: { jobName: string; folderPath: string; settings?: any }) => {
-  // Mocking the response for development
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const mockJob = {
-        _id: 'mock_job_' + Date.now(),
-        jobName: jobData.jobName,
-        status: 'pending' as const,
-        totalCards: 25,
-        processedCards: 0,
-        failedCards: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        userId: 'admin',
-        settings: {
-          confidenceThreshold: jobData.settings?.confidenceThreshold || 0.8,
-          autoProcess: jobData.settings?.autoProcess || true,
-          imageQuality: jobData.settings?.imageQuality || 'high'
-        }
-      };
-
-      resolve({
-        success: true,
-        message: 'Scan job started successfully',
-        jobId: mockJob._id,
-        job: mockJob
-      });
-    }, 500);
-  });
-  // Uncomment the below lines to make an actual API call
-  // try {
-  //   const response = await api.post('/api/scan/start', jobData);
-  //   return response.data;
-  // } catch (error: any) {
-  //   throw new Error(error?.response?.data?.error || error.message);
-  // }
+  try {
+    const response = await api.post('/api/scan/start', jobData);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error?.response?.data?.error || error.message);
+  }
 };
 
 // Description: Get all scan jobs for the current user
@@ -73,55 +44,12 @@ export const startScanJob = async (jobData: { jobName: string; folderPath: strin
 // Request: {}
 // Response: { success: boolean, jobs: ScanJob[] }
 export const getScanJobs = async () => {
-  // Mocking the response for development
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        success: true,
-        jobs: [
-          {
-            _id: 'job1',
-            jobName: 'Baseball Cards Lot 1',
-            status: 'completed',
-            totalCards: 50,
-            processedCards: 50,
-            failedCards: 0,
-            createdAt: '2024-01-15T10:30:00Z',
-            updatedAt: '2024-01-15T11:45:00Z',
-            userId: 'admin',
-            settings: {
-              confidenceThreshold: 0.8,
-              autoProcess: true,
-              imageQuality: 'high'
-            }
-          },
-          {
-            _id: 'job2',
-            jobName: 'Basketball Cards Lot 2',
-            status: 'processing',
-            totalCards: 25,
-            processedCards: 15,
-            failedCards: 1,
-            createdAt: '2024-01-16T09:15:00Z',
-            updatedAt: '2024-01-16T09:45:00Z',
-            userId: 'admin',
-            settings: {
-              confidenceThreshold: 0.8,
-              autoProcess: true,
-              imageQuality: 'high'
-            }
-          }
-        ]
-      });
-    }, 500);
-  });
-  // Uncomment the below lines to make an actual API call
-  // try {
-  //   const response = await api.get('/api/scan/jobs');
-  //   return response.data;
-  // } catch (error: any) {
-  //   throw new Error(error?.response?.data?.error || error.message);
-  // }
+  try {
+    const response = await api.get('/api/scan/jobs');
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error?.response?.data?.error || error.message);
+  }
 };
 
 // Description: Get recent scan jobs for the current user (alias for getScanJobs)
@@ -137,29 +65,12 @@ export const getRecentScanJobs = async () => {
 // Request: {}
 // Response: { success: boolean, progress: ScanProgress }
 export const getScanProgress = async (jobId: string) => {
-  // Mocking the response for development
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        success: true,
-        progress: {
-          jobId: jobId,
-          currentCard: 15,
-          totalCards: 25,
-          status: 'processing',
-          processingTime: 300,
-          estimatedTimeRemaining: 200
-        }
-      });
-    }, 500);
-  });
-  // Uncomment the below lines to make an actual API call
-  // try {
-  //   const response = await api.get(`/api/scan/progress/${jobId}`);
-  //   return response.data;
-  // } catch (error: any) {
-  //   throw new Error(error?.response?.data?.error || error.message);
-  // }
+  try {
+    const response = await api.get(`/api/scan/progress/${jobId}`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error?.response?.data?.error || error.message);
+  }
 };
 
 // Description: Get scan job status (alias for getScanProgress)
@@ -175,22 +86,12 @@ export const getScanJobStatus = async (jobId: string) => {
 // Request: {}
 // Response: { success: boolean, message: string }
 export const pauseScanJob = async (jobId: string) => {
-  // Mocking the response for development
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        success: true,
-        message: 'Scan job paused successfully'
-      });
-    }, 500);
-  });
-  // Uncomment the below lines to make an actual API call
-  // try {
-  //   const response = await api.post(`/api/scan/pause/${jobId}`);
-  //   return response.data;
-  // } catch (error: any) {
-  //   throw new Error(error?.response?.data?.error || error.message);
-  // }
+  try {
+    const response = await api.post(`/api/scan/pause/${jobId}`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error?.response?.data?.error || error.message);
+  }
 };
 
 // Description: Resume a paused scan job
@@ -198,22 +99,12 @@ export const pauseScanJob = async (jobId: string) => {
 // Request: {}
 // Response: { success: boolean, message: string }
 export const resumeScanJob = async (jobId: string) => {
-  // Mocking the response for development
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        success: true,
-        message: 'Scan job resumed successfully'
-      });
-    }, 500);
-  });
-  // Uncomment the below lines to make an actual API call
-  // try {
-  //   const response = await api.post(`/api/scan/resume/${jobId}`);
-  //   return response.data;
-  // } catch (error: any) {
-  //   throw new Error(error?.response?.data?.error || error.message);
-  // }
+  try {
+    const response = await api.post(`/api/scan/resume/${jobId}`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error?.response?.data?.error || error.message);
+  }
 };
 
 // Description: Pause or resume a scan job based on current status
@@ -235,20 +126,10 @@ export const pauseResumeJob = async (jobId: string, currentStatus: string) => {
 // Request: {}
 // Response: { success: boolean, message: string }
 export const cancelScanJob = async (jobId: string) => {
-  // Mocking the response for development
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        success: true,
-        message: 'Scan job cancelled successfully'
-      });
-    }, 500);
-  });
-  // Uncomment the below lines to make an actual API call
-  // try {
-  //   const response = await api.post(`/api/scan/cancel/${jobId}`);
-  //   return response.data;
-  // } catch (error: any) {
-  //   throw new Error(error?.response?.data?.error || error.message);
-  // }
+  try {
+    const response = await api.post(`/api/scan/cancel/${jobId}`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error?.response?.data?.error || error.message);
+  }
 };
