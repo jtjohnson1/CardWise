@@ -1,219 +1,341 @@
-import { useEffect, useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
-import { useToast } from "@/hooks/useToast"
-import { getCollectionStats, type CollectionStats } from "@/api/cards"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts"
-import { TrendingUp, DollarSign, Package, Star, Calendar } from "lucide-react"
-
-const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { TrendingUp, DollarSign, Package, Calendar, Award, Target } from 'lucide-react';
+import { useToast } from '@/hooks/useToast';
+import { getCollectionStats, type CollectionStats } from '@/api/cards';
 
 export function Analytics() {
-  const [stats, setStats] = useState<CollectionStats | null>(null)
-  const [loading, setLoading] = useState(true)
-  const { toast } = useToast()
+  const { toast } = useToast();
+  const [stats, setStats] = useState<CollectionStats | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchAnalytics = async () => {
+    const loadAnalyticsData = async () => {
       try {
-        console.log('Loading analytics data...')
-        const response = await getCollectionStats()
-        setStats(response.stats)
-      } catch (error) {
-        console.error('Error loading analytics:', error)
+        console.log('Loading analytics data...');
+        const response = await getCollectionStats();
+        
+        if (response.success && response.stats) {
+          setStats(response.stats);
+          console.log('Analytics data loaded successfully');
+        } else {
+          console.error('Invalid response structure:', response);
+          toast({
+            title: "Warning",
+            description: "Failed to load analytics data.",
+            variant: "destructive"
+          });
+        }
+      } catch (error: any) {
+        console.error('Error loading analytics data:', error);
         toast({
           title: "Error",
-          description: "Failed to load analytics data",
+          description: error.message || "Failed to load analytics data.",
           variant: "destructive"
-        })
+        });
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchAnalytics()
-  }, [toast])
+    loadAnalyticsData();
+  }, [toast]);
+
+  // Colors for charts
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+
+  // Mock data for additional charts
+  const valueOverTime = [
+    { month: 'Jan', value: 85000 },
+    { month: 'Feb', value: 92000 },
+    { month: 'Mar', value: 98000 },
+    { month: 'Apr', value: 105000 },
+    { month: 'May', value: 115000 },
+    { month: 'Jun', value: 125750 }
+  ];
+
+  const topCards = [
+    { name: 'Michael Jordan RC', value: 25000, sport: 'Basketball' },
+    { name: 'LeBron James Auto', value: 15000, sport: 'Basketball' },
+    { name: 'Wayne Gretzky RC', value: 12000, sport: 'Hockey' },
+    { name: 'Tom Brady Auto', value: 8500, sport: 'Football' },
+    { name: 'Mike Trout RC', value: 2500, sport: 'Baseball' }
+  ];
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i} className="bg-white/70 backdrop-blur-sm">
-              <CardHeader>
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-8 w-16" />
-              </CardHeader>
-            </Card>
-          ))}
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Skeleton className="h-80" />
-          <Skeleton className="h-80" />
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Loading analytics...</div>
         </div>
       </div>
-    )
+    );
   }
 
-  const mockValueTrend = [
-    { month: 'Jan', value: 8500 },
-    { month: 'Feb', value: 9200 },
-    { month: 'Mar', value: 10100 },
-    { month: 'Apr', value: 11300 },
-    { month: 'May', value: 11800 },
-    { month: 'Jun', value: 12450 }
-  ]
-
   return (
-    <div className="space-y-6 animate-in fade-in-50 duration-500">
-      {/* Header */}
+    <div className="container mx-auto p-6 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 dark:from-slate-100 dark:to-slate-400 bg-clip-text text-transparent">
-          Analytics
-        </h1>
-        <p className="text-slate-600 dark:text-slate-400 mt-1">
-          Insights into your card collection performance
+        <h1 className="text-3xl font-bold">Analytics</h1>
+        <p className="text-muted-foreground">
+          Detailed insights into your card collection performance and trends.
         </p>
       </div>
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm border-slate-200/50">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
-              Total Value
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-green-500" />
+            <CardTitle className="text-sm font-medium">Total Value</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-              ${stats?.totalValue.toLocaleString()}
+            <div className="text-2xl font-bold">
+              ${stats?.totalValue?.toLocaleString() || '0'}
             </div>
-            <p className="text-xs text-green-600 dark:text-green-400 flex items-center mt-1">
-              <TrendingUp className="w-3 h-3 mr-1" />
-              +12.5% this year
+            <p className="text-xs text-muted-foreground">
+              +12.5% from last month
             </p>
           </CardContent>
         </Card>
 
-        <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm border-slate-200/50">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
-              Average Value
-            </CardTitle>
-            <Star className="h-4 w-4 text-yellow-500" />
+            <CardTitle className="text-sm font-medium">Total Cards</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-              ${Math.round((stats?.totalValue || 0) / (stats?.totalCards || 1)).toLocaleString()}
+            <div className="text-2xl font-bold">
+              {stats?.totalCards?.toLocaleString() || '0'}
             </div>
-            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-              per card
+            <p className="text-xs text-muted-foreground">
+              +8 cards this month
             </p>
           </CardContent>
         </Card>
 
-        <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm border-slate-200/50">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
-              Most Valuable
-            </CardTitle>
-            <Package className="h-4 w-4 text-blue-500" />
+            <CardTitle className="text-sm font-medium">Average Value</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-              $15,000
+            <div className="text-2xl font-bold">
+              ${stats && stats.totalCards && stats.totalCards > 0
+                ? Math.round(stats.totalValue / stats.totalCards).toLocaleString()
+                : '0'}
             </div>
-            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-              LeBron James RC
+            <p className="text-xs text-muted-foreground">
+              Per card value
             </p>
           </CardContent>
         </Card>
 
-        <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm border-slate-200/50">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
-              Growth Rate
-            </CardTitle>
-            <Calendar className="h-4 w-4 text-purple-500" />
+            <CardTitle className="text-sm font-medium">Sports Count</CardTitle>
+            <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-              +46%
+            <div className="text-2xl font-bold">
+              {stats?.sportBreakdown?.length || '0'}
             </div>
-            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-              last 12 months
+            <p className="text-xs text-muted-foreground">
+              Different sports
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Sports Distribution */}
-        <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm border-slate-200/50">
-          <CardHeader>
-            <CardTitle>Collection by Sport</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={stats?.topSports}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ sport, count }) => `${sport}: ${count}`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="count"
-                >
-                  {stats?.topSports.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="sports">Sports</TabsTrigger>
+          <TabsTrigger value="value">Value Trends</TabsTrigger>
+          <TabsTrigger value="top-cards">Top Cards</TabsTrigger>
+        </TabsList>
 
-        {/* Value Distribution */}
-        <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm border-slate-200/50">
-          <CardHeader>
-            <CardTitle>Value Distribution</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={stats?.valueDistribution}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="range" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="count" fill="#3B82F6" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Collection by Sport */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Collection by Sport</CardTitle>
+                <CardDescription>
+                  Distribution of cards across different sports
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {stats?.sportBreakdown && stats.sportBreakdown.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={stats.sportBreakdown}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ _id, count }) => `${_id}: ${count}`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="count"
+                      >
+                        {stats.sportBreakdown.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                    No sport data available
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-      {/* Value Trend */}
-      <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm border-slate-200/50">
-        <CardHeader>
-          <CardTitle>Collection Value Trend</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={mockValueTrend}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip formatter={(value) => [`$${value.toLocaleString()}`, 'Value']} />
-              <Line type="monotone" dataKey="value" stroke="#10B981" strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+            {/* Recent Activity */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Activity</CardTitle>
+                <CardDescription>
+                  Latest additions to your collection
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {stats?.recentCards && stats.recentCards.length > 0 ? (
+                    stats.recentCards.slice(0, 5).map((card) => (
+                      <div key={card._id} className="flex items-center space-x-4">
+                        <div className="w-12 h-16 bg-muted rounded overflow-hidden flex-shrink-0 flex items-center justify-center">
+                          <img
+                            src={card.frontImage}
+                            alt={`${card.playerName} card`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              const parent = target.parentElement;
+                              if (parent) {
+                                parent.innerHTML = '<div class="text-xs text-muted-foreground text-center">Card</div>';
+                              }
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium">{card.playerName}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {card.year} {card.manufacturer}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="outline" className="text-xs">{card.sport}</Badge>
+                            {card.isRookieCard && (
+                              <Badge variant="destructive" className="text-xs">RC</Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold">
+                            ${card.estimatedValue?.toLocaleString() || '0'}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center text-muted-foreground py-8">
+                      No recent activity
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="sports" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Sports Breakdown</CardTitle>
+              <CardDescription>
+                Detailed view of your collection by sport
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {stats?.sportBreakdown && stats.sportBreakdown.length > 0 ? (
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={stats.sportBreakdown}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="_id" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#8884d8" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[400px] text-muted-foreground">
+                  No sport data available
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="value" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Collection Value Over Time</CardTitle>
+              <CardDescription>
+                Track how your collection value has grown
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart data={valueOverTime}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Collection Value']} />
+                  <Line type="monotone" dataKey="value" stroke="#8884d8" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="top-cards" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Most Valuable Cards</CardTitle>
+              <CardDescription>
+                Your highest value cards by estimated worth
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {topCards.map((card, index) => (
+                  <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold">
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="font-medium">{card.name}</p>
+                        <Badge variant="outline" className="text-xs">{card.sport}</Badge>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-lg">${card.value.toLocaleString()}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
-  )
+  );
 }

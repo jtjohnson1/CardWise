@@ -287,13 +287,18 @@ export function Collection() {
                   </div>
                   <Link to={`/card/${card._id}`}>
                     <CardHeader className="pb-2">
-                      <div className="aspect-[2.5/3.5] bg-muted rounded-md mb-2 overflow-hidden">
+                      <div className="aspect-[2.5/3.5] bg-muted rounded-md mb-2 overflow-hidden flex items-center justify-center">
                         <img
                           src={card.frontImage}
                           alt={`${card.playerName} card front`}
                           className="w-full h-full object-cover"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).src = '/api/placeholder/250/350';
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            const parent = target.parentElement;
+                            if (parent) {
+                              parent.innerHTML = '<div class="text-sm text-muted-foreground">Card Image</div>';
+                            }
                           }}
                         />
                       </div>
@@ -354,13 +359,18 @@ export function Collection() {
                       checked={selectedCards.has(card._id)}
                       onCheckedChange={(checked) => handleCardSelect(card._id, checked as boolean)}
                     />
-                    <div className="w-16 h-20 bg-muted rounded overflow-hidden flex-shrink-0">
+                    <div className="w-16 h-20 bg-muted rounded overflow-hidden flex-shrink-0 flex items-center justify-center">
                       <img
                         src={card.frontImage}
                         alt={`${card.playerName} card`}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/api/placeholder/64/80';
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent) {
+                            parent.innerHTML = '<div class="text-xs text-muted-foreground text-center">Card</div>';
+                          }
                         }}
                       />
                     </div>

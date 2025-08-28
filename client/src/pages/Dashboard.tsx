@@ -161,8 +161,8 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${stats && stats.totalCards && stats.totalCards > 0 
-                ? Math.round(stats.totalValue / stats.totalCards).toLocaleString() 
+              ${stats && stats.totalCards && stats.totalCards > 0
+                ? Math.round(stats.totalValue / stats.totalCards).toLocaleString()
                 : '0'}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -224,13 +224,18 @@ export function Dashboard() {
               {stats?.recentCards && stats.recentCards.length > 0 ? (
                 stats.recentCards.slice(0, 5).map((card) => (
                   <div key={card._id} className="flex items-center space-x-4">
-                    <div className="w-12 h-16 bg-muted rounded overflow-hidden flex-shrink-0">
+                    <div className="w-12 h-16 bg-muted rounded overflow-hidden flex-shrink-0 flex items-center justify-center">
                       <img
                         src={card.frontImage}
                         alt={`${card.playerName} card`}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = 'https://via.placeholder.com/48x64/CCCCCC/666666?text=Card';
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent) {
+                            parent.innerHTML = '<div class="text-xs text-muted-foreground text-center">Card</div>';
+                          }
                         }}
                       />
                     </div>
@@ -289,12 +294,12 @@ export function Dashboard() {
                       <p className="text-sm font-medium">
                         {job.processedCards} / {job.totalCards}
                       </p>
-                      <Progress 
-                        value={job.totalCards > 0 ? (job.processedCards / job.totalCards) * 100 : 0} 
-                        className="w-20" 
+                      <Progress
+                        value={job.totalCards > 0 ? (job.processedCards / job.totalCards) * 100 : 0}
+                        className="w-20"
                       />
                     </div>
-                    <Badge 
+                    <Badge
                       variant={
                         job.status === 'completed' ? 'default' :
                         job.status === 'processing' ? 'secondary' :
