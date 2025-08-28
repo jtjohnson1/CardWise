@@ -91,6 +91,50 @@ Build the client for production:
 npm run build
 ```
 
+## Deployment
+
+### Quick Deployment Script
+
+For easy deployment, use the provided deployment script:
+
+```bash
+# Make the script executable
+chmod +x deploy.sh
+
+# Run the deployment
+./deploy.sh
+```
+
+The deployment script will:
+1. Install all dependencies
+2. Build the client for production
+3. Set up environment variables
+4. Start MongoDB if not running
+5. Start the application in production mode
+
+### Manual Deployment
+
+1. Install dependencies:
+```bash
+npm run install-all
+```
+
+2. Build the client:
+```bash
+npm run build
+```
+
+3. Set up production environment:
+```bash
+cp .env.example .env
+# Edit .env with production values
+```
+
+4. Start the application:
+```bash
+npm run start:prod
+```
+
 ## API Endpoints
 
 ### Seeding Data

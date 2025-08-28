@@ -18,6 +18,214 @@ Before deploying CardWise, ensure your system meets the following requirements:
 - **Ollama**: For AI-powered card scanning functionality
 - **NVIDIA GPU**: For accelerated AI processing (if using Ollama)
 
+## Quick Deployment Script
+
+For a quick deployment, you can use the following bash script:
+
+```bash
+#!/bin/bash
+
+# CardWise Deployment Script
+set -e
+
+echo "Starting CardWise deployment..."
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Function to print colored output
+print_status() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Check if running as root
+if [[ $EUID -eq 0 ]]; then
+   print_error "This script should not be run as root"
+   exit 1
+fi
+
+# Update system packages
+print_status "Updating system packages..."
+sudo apt update && sudo apt upgrade -y
+
+# Install Node.js if not present
+if ! command -v node &> /dev/null; then
+    print_status "Installing Node.js..."
+    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+else
+    print_status "Node.js already installed: $(node --version)"
+fi
+
+# Install MongoDB if not present
+if ! command -v mongod &> /dev/null; then
+    print_status "Installing MongoDB..."
+    wget -qO - https://www.mongodb.org/static/pgp/server-6.0.asc | sudo apt-key add -
+    echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
+    sudo apt-get update
+    sudo apt-get install -y mongodb-org
+    sudo systemctl start mongod
+    sudo systemctl enable mongod
+else
+    print_status "MongoDB already installed"
+    sudo systemctl start mongod
+fi
+
+# Create application directory
+INSTALL_DIR="/opt/CardWise"
+if [ ! -d "$INSTALL_DIR" ]; then
+    print_status "Creating application directory..."
+    sudo mkdir -p $INSTALL_DIR
+    sudo chown $USER:$USER $INSTALL_DIR
+fi
+
+cd $INSTALL_DIR
+
+# Install dependencies
+print_status "Installing application dependencies..."
+if [ -f "package.json" ]; then
+    npm install
+    
+    # Install client dependencies
+    if [ -d "client" ]; then
+        cd client
+        npm install
+        cd ..
+    fi
+    
+    # Install server dependencies
+    if [ -d "server" ]; then
+        cd server
+        npm install
+        cd ..
+    fi
+else
+    print_error "package.json not found in $INSTALL_DIR"
+    exit 1
+fi
+
+# Setup environment configuration
+print_status "Setting up environment configuration..."
+if [ ! -f ".env" ]; then
+    if [ -f ".env.example" ]; then
+        cp .env.example .env
+        print_warning "Please edit .env file with your configuration"
+    else
+        # Create basic .env file
+        cat > .env << EOF
+# Database
+DATABASE_URL=mongodb://localhost:27017/CardWise
+
+# Server
+PORT=3000
+NODE_ENV=production
+
+# Security (CHANGE THESE VALUES)
+JWT_SECRET=your-secure-jwt-secret-here
+REFRESH_TOKEN_SECRET=your-secure-refresh-secret-here
+SESSION_SECRET=your-secure-session-secret-here
+
+# Ollama (optional)
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_MODEL=llava:latest
+EOF
+        print_warning "Created .env file with default values. Please update with secure values!"
+    fi
+fi
+
+# Build client application
+print_status "Building client application..."
+if [ -d "client" ]; then
+    cd client
+    npm run build
+    cd ..
+fi
+
+# Install PM2 for process management
+if ! command -v pm2 &> /dev/null; then
+    print_status "Installing PM2..."
+    sudo npm install -g pm2
+fi
+
+# Create PM2 ecosystem file
+print_status "Creating PM2 configuration..."
+cat > ecosystem.config.js << EOF
+module.exports = {
+  apps: [
+    {
+      name: 'cardwise-server',
+      script: 'server/server.js',
+      cwd: '$INSTALL_DIR',
+      env: {
+        NODE_ENV: 'production',
+        PORT: 3000
+      },
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '1G'
+    }
+  ]
+};
+EOF
+
+# Start application with PM2
+print_status "Starting CardWise application..."
+pm2 start ecosystem.config.js
+pm2 save
+pm2 startup
+
+# Verify MongoDB is running
+print_status "Verifying MongoDB connection..."
+if mongosh --eval 'db.runCommand("connectionStatus")' > /dev/null 2>&1; then
+    print_status "MongoDB is running successfully"
+else
+    print_error "MongoDB connection failed"
+    exit 1
+fi
+
+# Test application
+print_status "Testing application..."
+sleep 5
+if curl -f http://localhost:3000 > /dev/null 2>&1; then
+    print_status "CardWise is running successfully!"
+    print_status "Access your application at: http://localhost:3000"
+else
+    print_warning "Application may still be starting up. Check with: pm2 logs cardwise-server"
+fi
+
+print_status "Deployment completed!"
+print_warning "Don't forget to:"
+print_warning "1. Update .env file with secure values"
+print_warning "2. Configure firewall settings"
+print_warning "3. Set up SSL certificates for production"
+print_warning "4. Create admin user and seed database"
+
+echo ""
+print_status "Useful commands:"
+echo "  pm2 status                 - Check application status"
+echo "  pm2 logs cardwise-server   - View application logs"
+echo "  pm2 restart cardwise-server - Restart application"
+echo "  pm2 stop cardwise-server   - Stop application"
+```
+
+Save this script as `deploy-cardwise.sh` and run it with:
+```bash
+chmod +x deploy-cardwise.sh
+./deploy-cardwise.sh
+```
+
 ## Installation Steps
 
 ### 1. System Preparation

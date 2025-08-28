@@ -18,7 +18,7 @@ const packageInfo = {
 const buildDir = path.join(__dirname, '..', 'build');
 const debDir = path.join(buildDir, 'cardwise_1.0.0_amd64');
 const debianDir = path.join(debDir, 'DEBIAN');
-const optDir = path.join(debDir, 'opt', 'cardwise');
+const optDir = path.join(debDir, 'opt', 'CardWise');
 const systemdDir = path.join(debDir, 'etc', 'systemd', 'system');
 
 // Clean and create directories
@@ -53,22 +53,22 @@ set -e
 
 # Create cardwise user if it doesn't exist
 if ! id "cardwise" &>/dev/null; then
-    useradd --system --home /opt/cardwise --shell /bin/false cardwise
+    useradd --system --home /opt/CardWise --shell /bin/false cardwise
 fi
 
 # Set ownership
-chown -R cardwise:cardwise /opt/cardwise
+chown -R cardwise:cardwise /opt/CardWise
 
 # Install npm dependencies
-cd /opt/cardwise
+cd /opt/CardWise
 sudo -u cardwise npm install --production
-cd /opt/cardwise/client
+cd /opt/CardWise/client
 sudo -u cardwise npm install --production
-cd /opt/cardwise/server
+cd /opt/CardWise/server
 sudo -u cardwise npm install --production
 
 # Build client
-cd /opt/cardwise/client
+cd /opt/CardWise/client
 sudo -u cardwise npm run build
 
 # Enable and start service
@@ -105,7 +105,7 @@ After=network.target mongodb.service
 Type=simple
 User=cardwise
 Group=cardwise
-WorkingDirectory=/opt/cardwise
+WorkingDirectory=/opt/CardWise
 Environment=NODE_ENV=production
 Environment=PORT=3000
 ExecStart=/usr/bin/npm start
