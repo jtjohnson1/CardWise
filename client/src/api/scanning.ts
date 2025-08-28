@@ -200,6 +200,28 @@ export const resumeScanJob = async (jobId: string) => {
   // }
 };
 
+// Description: Pause or resume a scan job based on current status
+// Endpoint: POST /api/scan/pause/:jobId or POST /api/scan/resume/:jobId
+// Request: { jobId: string, currentStatus: string }
+// Response: { success: boolean, message: string }
+export const pauseResumeJob = async (jobId: string, currentStatus: string) => {
+  // If job is currently processing, pause it. If paused, resume it.
+  if (currentStatus === 'processing') {
+    return pauseScanJob(jobId);
+  } else if (currentStatus === 'paused') {
+    return resumeScanJob(jobId);
+  } else {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({
+          success: false,
+          message: `Cannot pause/resume job with status: ${currentStatus}`
+        });
+      }, 100);
+    });
+  }
+};
+
 // Description: Cancel a scan job
 // Endpoint: POST /api/scan/cancel/:jobId
 // Request: {}
