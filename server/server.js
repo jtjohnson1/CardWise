@@ -70,24 +70,33 @@ const initializeDatabase = async () => {
     await connectDB();
     console.log(`[PERFORMANCE] Database connection took ${Date.now() - startTime}ms`);
 
+    // Make seeding non-fatal - don't crash server if it fails
     console.log('[PERFORMANCE] Starting admin user seeding...');
     const adminStartTime = Date.now();
-    // Automatically seed admin user if it doesn't exist
-    const adminResult = await seedAdminUser();
-    console.log(`[PERFORMANCE] Admin user seeding took ${Date.now() - adminStartTime}ms`);
-    console.log('Admin user check result:', adminResult.message);
+    try {
+      const adminResult = await seedAdminUser();
+      console.log(`[PERFORMANCE] Admin user seeding took ${Date.now() - adminStartTime}ms`);
+      console.log('Admin user check result:', adminResult.message);
+    } catch (error) {
+      console.error('[PERFORMANCE] Admin user seeding failed (non-fatal):', error.message);
+      console.log('[PERFORMANCE] Server will continue without seeding admin user');
+    }
 
     console.log('[PERFORMANCE] Starting sample cards seeding...');
     const cardsStartTime = Date.now();
-    // Automatically seed sample cards if they don't exist
-    const cardsResult = await seedSampleCards();
-    console.log(`[PERFORMANCE] Sample cards seeding took ${Date.now() - cardsStartTime}ms`);
-    console.log('Sample cards check result:', cardsResult.message);
+    try {
+      const cardsResult = await seedSampleCards();
+      console.log(`[PERFORMANCE] Sample cards seeding took ${Date.now() - cardsStartTime}ms`);
+      console.log('Sample cards check result:', cardsResult.message);
+    } catch (error) {
+      console.error('[PERFORMANCE] Sample cards seeding failed (non-fatal):', error.message);
+      console.log('[PERFORMANCE] Server will continue without seeding sample cards');
+    }
 
     console.log(`[PERFORMANCE] Total database initialization took ${Date.now() - startTime}ms`);
 
   } catch (error) {
-    console.error('[PERFORMANCE] Database initialization error:', error.message);
+    console.error('[PERFORMANCE] Database connection error:', error.message);
     console.error('[PERFORMANCE] Error stack:', error.stack);
     process.exit(1);
   }
