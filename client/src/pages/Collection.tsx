@@ -1,229 +1,402 @@
-import { useEffect, useState } from "react"
-import { Link } from "react-router-dom"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Skeleton } from "@/components/ui/skeleton"
-import { useToast } from "@/hooks/useToast"
-import { getCards, type Card as CardType } from "@/api/cards"
-import { Search, Filter, Grid, List, Plus, Eye, DollarSign, Calendar } from "lucide-react"
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Search, Grid, List, Trash2, Plus } from 'lucide-react';
+import { useToast } from '@/hooks/useToast';
+import { getCards, deleteCard, type Card as CardType } from '@/api/cards';
+import { Link } from 'react-router-dom';
 
 export function Collection() {
-  const [cards, setCards] = useState<CardType[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [sportFilter, setSportFilter] = useState("")
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const { toast } = useToast()
+  const { toast } = useToast();
+  const [cards, setCards] = useState<CardType[]>([]);
+  const [filteredCards, setFilteredCards] = useState<CardType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set());
+  const [selectAll, setSelectAll] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
+  // Load cards on component mount
   useEffect(() => {
-    const fetchCards = async () => {
+    const loadCards = async () => {
       try {
-        console.log('Loading collection...')
-        const response = await getCards({ search: searchTerm, sport: sportFilter })
-        setCards(response.cards)
-      } catch (error) {
-        console.error('Error loading collection:', error)
+        console.log('Loading cards from API...');
+        const response = await getCards();
+        console.log('Cards loaded successfully:', response.cards.length);
+        setCards(response.cards);
+        setFilteredCards(response.cards);
+      } catch (error: any) {
+        console.error('Error loading cards:', error);
         toast({
           title: "Error",
-          description: "Failed to load collection",
+          description: error.message || "Failed to load cards.",
           variant: "destructive"
-        })
+        });
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
+    };
+
+    loadCards();
+  }, [toast]);
+
+  // Filter cards based on search term
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setFilteredCards(cards);
+    } else {
+      const filtered = cards.filter(card =>
+        card.playerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        card.sport.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        card.manufacturer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        card.setName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        card.year.toString().includes(searchTerm)
+      );
+      setFilteredCards(filtered);
+    }
+    // Reset selections when search changes
+    setSelectedCards(new Set());
+    setSelectAll(false);
+  }, [searchTerm, cards]);
+
+  // Handle individual card selection
+  const handleCardSelect = (cardId: string, checked: boolean) => {
+    console.log(`Card ${cardId} selection changed to:`, checked);
+    const newSelected = new Set(selectedCards);
+    if (checked) {
+      newSelected.add(cardId);
+    } else {
+      newSelected.delete(cardId);
+    }
+    setSelectedCards(newSelected);
+
+    // Update select all state
+    setSelectAll(newSelected.size === filteredCards.length && filteredCards.length > 0);
+  };
+
+  // Handle select all
+  const handleSelectAll = (checked: boolean) => {
+    console.log('Select all changed to:', checked);
+    setSelectAll(checked);
+    if (checked) {
+      const allCardIds = new Set(filteredCards.map(card => card._id));
+      setSelectedCards(allCardIds);
+    } else {
+      setSelectedCards(new Set());
+    }
+  };
+
+  // Handle delete selected cards
+  const handleDeleteSelected = async () => {
+    if (selectedCards.size === 0) {
+      toast({
+        title: "No Selection",
+        description: "Please select cards to delete.",
+        variant: "destructive"
+      });
+      return;
     }
 
-    fetchCards()
-  }, [searchTerm, sportFilter, toast])
+    setDeleting(true);
+    try {
+      console.log(`Deleting ${selectedCards.size} selected cards...`);
 
-  const sports = ['Baseball', 'Basketball', 'Football', 'Hockey']
+      // Delete each selected card
+      const deletePromises = Array.from(selectedCards).map(cardId => {
+        console.log(`Deleting card with ID: ${cardId}`);
+        return deleteCard(cardId);
+      });
+
+      await Promise.all(deletePromises);
+
+      // Remove deleted cards from state
+      const remainingCards = cards.filter(card => !selectedCards.has(card._id));
+      setCards(remainingCards);
+      setFilteredCards(remainingCards.filter(card =>
+        !searchTerm.trim() ||
+        card.playerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        card.sport.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        card.manufacturer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        card.setName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        card.year.toString().includes(searchTerm)
+      ));
+
+      // Clear selections
+      setSelectedCards(new Set());
+      setSelectAll(false);
+
+      console.log(`Successfully deleted ${selectedCards.size} cards`);
+      toast({
+        title: "Success",
+        description: `Successfully deleted ${selectedCards.size} card(s).`
+      });
+    } catch (error: any) {
+      console.error('Error deleting cards:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete selected cards.",
+        variant: "destructive"
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Card key={i} className="bg-white/70 backdrop-blur-sm">
-              <CardContent className="p-4">
-                <Skeleton className="h-48 w-full mb-4" />
-                <Skeleton className="h-4 w-3/4 mb-2" />
-                <Skeleton className="h-4 w-1/2" />
-              </CardContent>
-            </Card>
-          ))}
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Loading collection...</div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in-50 duration-500">
-      {/* Header */}
+    <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 dark:from-slate-100 dark:to-slate-400 bg-clip-text text-transparent">
-            Collection
-          </h1>
-          <p className="text-slate-600 dark:text-slate-400 mt-1">
-            {cards.length} cards in your collection
+          <h1 className="text-3xl font-bold">My Collection</h1>
+          <p className="text-muted-foreground">
+            {filteredCards.length} card{filteredCards.length !== 1 ? 's' : ''} in your collection
+            {selectedCards.size > 0 && ` (${selectedCards.size} selected)`}
           </p>
         </div>
-        <Button className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-lg">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Card
-        </Button>
+        <div className="flex items-center gap-2">
+          {selectedCards.size > 0 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" disabled={deleting}>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Selected ({selectedCards.size})
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Selected Cards</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete {selectedCards.size} selected card{selectedCards.size !== 1 ? 's' : ''}?
+                    This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteSelected} disabled={deleting}>
+                    {deleting ? 'Deleting...' : 'Delete'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          <Link to="/scan">
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Cards
+            </Button>
+          </Link>
+        </div>
       </div>
 
-      {/* Filters */}
-      <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm border-slate-200/50">
-        <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4 items-center">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-              <Input
-                placeholder="Search by player, set, or year..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-white/50 dark:bg-slate-700/50"
-              />
-            </div>
-            <Select value={sportFilter} onValueChange={setSportFilter}>
-              <SelectTrigger className="w-full md:w-48 bg-white/50 dark:bg-slate-700/50">
-                <SelectValue placeholder="All Sports" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Sports</SelectItem>
-                {sports.map((sport) => (
-                  <SelectItem key={sport} value={sport}>{sport}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex gap-2">
-              <Button
-                variant={viewMode === 'grid' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('grid')}
-              >
-                <Grid className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('list')}
-              >
-                <List className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Cards Grid */}
-      {viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {cards.map((card) => (
-            <Card key={card._id} className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm border-slate-200/50 hover:shadow-lg transition-all duration-300 group">
-              <CardContent className="p-4">
-                <div className="aspect-[2.5/3.5] bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-700 rounded-lg mb-4 flex items-center justify-center relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="text-slate-500 dark:text-slate-400">Card Image</div>
-                  <Link 
-                    to={`/card/${card._id}`}
-                    className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <Button size="sm" className="bg-white/90 text-slate-900 hover:bg-white">
-                      <Eye className="w-4 h-4 mr-2" />
-                      View
-                    </Button>
-                  </Link>
-                </div>
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-slate-900 dark:text-slate-100 truncate">
-                    {card.playerName}
-                  </h3>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">
-                    {card.year} {card.manufacturer}
-                  </p>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 truncate">
-                    {card.setName} #{card.cardNumber}
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex gap-1">
-                      {card.isRookieCard && (
-                        <Badge variant="secondary" className="text-xs">RC</Badge>
-                      )}
-                      {card.isAutograph && (
-                        <Badge variant="secondary" className="text-xs">Auto</Badge>
-                      )}
-                    </div>
-                    <span className="font-semibold text-green-600 dark:text-green-400">
-                      ${card.estimatedValue.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                    <span>{card.condition.overall}</span>
-                    <span>{new Date(card.dateAdded).toLocaleDateString()}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+      {/* Search and View Controls */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
+            placeholder="Search cards..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
         </div>
-      ) : (
-        <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm border-slate-200/50">
-          <CardContent className="p-0">
-            <div className="divide-y divide-slate-200/50 dark:divide-slate-700/50">
-              {cards.map((card) => (
-                <div key={card._id} className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-700/50 transition-colors">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-16 h-20 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-700 rounded flex items-center justify-center flex-shrink-0">
-                      <span className="text-xs text-slate-500">Card</span>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={viewMode === 'grid' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('grid')}
+          >
+            <Grid className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === 'list' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('list')}
+          >
+            <List className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Selection Controls */}
+      {filteredCards.length > 0 && (
+        <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="select-all"
+              checked={selectAll}
+              onCheckedChange={handleSelectAll}
+            />
+            <label htmlFor="select-all" className="text-sm font-medium">
+              Select All ({filteredCards.length} cards)
+            </label>
+          </div>
+          {selectedCards.size > 0 && (
+            <Badge variant="secondary">
+              {selectedCards.size} selected
+            </Badge>
+          )}
+        </div>
+      )}
+
+      <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'grid' | 'list')}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="grid">Grid View</TabsTrigger>
+          <TabsTrigger value="list">List View</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="grid" className="space-y-4">
+          {filteredCards.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">
+                {searchTerm ? 'No cards match your search.' : 'No cards in your collection yet.'}
+              </p>
+              {!searchTerm && (
+                <Link to="/scan">
+                  <Button className="mt-4">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Your First Card
+                  </Button>
+                </Link>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filteredCards.map((card) => (
+                <Card key={card._id} className="relative group">
+                  <div className="absolute top-2 left-2 z-10">
+                    <Checkbox
+                      checked={selectedCards.has(card._id)}
+                      onCheckedChange={(checked) => handleCardSelect(card._id, checked as boolean)}
+                      className="bg-background border-2"
+                    />
+                  </div>
+                  <Link to={`/card/${card._id}`}>
+                    <CardHeader className="pb-2">
+                      <div className="aspect-[2.5/3.5] bg-muted rounded-md mb-2 overflow-hidden">
+                        <img
+                          src={card.frontImage}
+                          alt={`${card.playerName} card front`}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = '/api/placeholder/250/350';
+                          }}
+                        />
+                      </div>
+                      <CardTitle className="text-lg">{card.playerName}</CardTitle>
+                      <CardDescription>
+                        {card.year} {card.manufacturer} {card.setName}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center justify-between">
+                        <Badge variant="outline">{card.sport}</Badge>
+                        <span className="font-semibold">
+                          ${card.estimatedValue?.toLocaleString() || '0'}
+                        </span>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <Badge variant="secondary" className="text-xs">
+                          #{card.cardNumber}
+                        </Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          {card.condition.overall}
+                        </Badge>
+                        {card.isRookieCard && (
+                          <Badge variant="destructive" className="text-xs">
+                            RC
+                          </Badge>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Link>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="list" className="space-y-4">
+          {filteredCards.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">
+                {searchTerm ? 'No cards match your search.' : 'No cards in your collection yet.'}
+              </p>
+              {!searchTerm && (
+                <Link to="/scan">
+                  <Button className="mt-4">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Your First Card
+                  </Button>
+                </Link>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filteredCards.map((card) => (
+                <Card key={card._id} className="p-4">
+                  <div className="flex items-center gap-4">
+                    <Checkbox
+                      checked={selectedCards.has(card._id)}
+                      onCheckedChange={(checked) => handleCardSelect(card._id, checked as boolean)}
+                    />
+                    <div className="w-16 h-20 bg-muted rounded overflow-hidden flex-shrink-0">
+                      <img
+                        src={card.frontImage}
+                        alt={`${card.playerName} card`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = '/api/placeholder/64/80';
+                        }}
+                      />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-slate-900 dark:text-slate-100">
-                        {card.playerName}
-                      </h3>
-                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                    <div className="flex-1">
+                      <Link to={`/card/${card._id}`} className="hover:underline">
+                        <h3 className="font-semibold text-lg">{card.playerName}</h3>
+                      </Link>
+                      <p className="text-muted-foreground">
                         {card.year} {card.manufacturer} {card.setName} #{card.cardNumber}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         <Badge variant="outline" className="text-xs">{card.sport}</Badge>
+                        <Badge variant="secondary" className="text-xs">{card.condition.overall}</Badge>
                         {card.isRookieCard && (
-                          <Badge variant="secondary" className="text-xs">Rookie</Badge>
+                          <Badge variant="destructive" className="text-xs">RC</Badge>
                         )}
                         {card.isAutograph && (
-                          <Badge variant="secondary" className="text-xs">Auto</Badge>
+                          <Badge variant="default" className="text-xs">AUTO</Badge>
                         )}
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold text-slate-900 dark:text-slate-100">
-                        ${card.estimatedValue.toLocaleString()}
-                      </p>
-                      <p className="text-sm text-slate-600 dark:text-slate-400">
-                        {card.condition.overall}
-                      </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center mt-1">
-                        <Calendar className="w-3 h-3 mr-1" />
-                        {new Date(card.dateAdded).toLocaleDateString()}
-                      </p>
+                      <div className="font-semibold text-lg">
+                        ${card.estimatedValue?.toLocaleString() || '0'}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        Est. Value
+                      </div>
                     </div>
-                    <Link to={`/card/${card._id}`}>
-                      <Button variant="outline" size="sm">
-                        <Eye className="w-4 h-4 mr-2" />
-                        View
-                      </Button>
-                    </Link>
                   </div>
-                </div>
+                </Card>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
-  )
+  );
 }

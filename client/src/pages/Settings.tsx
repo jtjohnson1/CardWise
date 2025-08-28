@@ -9,10 +9,25 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, Save, RotateCcw, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
+import { 
+  saveEbayConfig, 
+  getEbayConfig, 
+  saveTcgPlayerConfig, 
+  getTcgPlayerConfig,
+  saveNotificationPreferences,
+  getNotificationPreferences,
+  saveScanningPreferences,
+  getScanningPreferences,
+  type EbayConfig,
+  type TcgPlayerConfig,
+  type NotificationPreferences,
+  type ScanningPreferences
+} from '@/api/settings';
 
 export function Settings() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [showSecrets, setShowSecrets] = useState({
     ebayClientSecret: false,
     ebayUserToken: false,
@@ -20,23 +35,23 @@ export function Settings() {
   });
 
   // eBay API Configuration
-  const [ebayConfig, setEbayConfig] = useState({
+  const [ebayConfig, setEbayConfig] = useState<EbayConfig>({
     appId: '',
     devId: '',
     certId: '',
     userToken: '',
-    environment: 'sandbox' // sandbox or production
+    environment: 'sandbox'
   });
 
   // TCGPlayer API Configuration
-  const [tcgPlayerConfig, setTcgPlayerConfig] = useState({
+  const [tcgPlayerConfig, setTcgPlayerConfig] = useState<TcgPlayerConfig>({
     apiKey: '',
     partnerId: '',
     environment: 'sandbox'
   });
 
   // Notification Settings
-  const [notifications, setNotifications] = useState({
+  const [notifications, setNotifications] = useState<NotificationPreferences>({
     email: true,
     push: true,
     priceAlerts: true,
@@ -45,12 +60,69 @@ export function Settings() {
   });
 
   // Scanning Preferences
-  const [scanningPrefs, setScanningPrefs] = useState({
+  const [scanningPrefs, setScanningPrefs] = useState<ScanningPreferences>({
     autoProcess: true,
     confidenceThreshold: 0.8,
     imageQuality: 'high',
     batchSize: 10
   });
+
+  // Load initial data
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        console.log('Loading initial settings data...');
+        
+        // Load eBay config
+        try {
+          const ebayData = await getEbayConfig();
+          console.log('Loaded eBay config:', { ...ebayData, certId: '[REDACTED]', userToken: '[REDACTED]' });
+          setEbayConfig(ebayData);
+        } catch (error) {
+          console.error('Failed to load eBay config:', error);
+        }
+
+        // Load TCGPlayer config
+        try {
+          const tcgData = await getTcgPlayerConfig();
+          console.log('Loaded TCGPlayer config:', { ...tcgData, apiKey: '[REDACTED]' });
+          setTcgPlayerConfig(tcgData);
+        } catch (error) {
+          console.error('Failed to load TCGPlayer config:', error);
+        }
+
+        // Load notification preferences
+        try {
+          const notificationData = await getNotificationPreferences();
+          console.log('Loaded notification preferences:', notificationData);
+          setNotifications(notificationData);
+        } catch (error) {
+          console.error('Failed to load notification preferences:', error);
+        }
+
+        // Load scanning preferences
+        try {
+          const scanningData = await getScanningPreferences();
+          console.log('Loaded scanning preferences:', scanningData);
+          setScanningPrefs(scanningData);
+        } catch (error) {
+          console.error('Failed to load scanning preferences:', error);
+        }
+
+      } catch (error) {
+        console.error('Error loading initial settings data:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load settings data.",
+          variant: "destructive"
+        });
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+
+    loadInitialData();
+  }, [toast]);
 
   const toggleSecretVisibility = (field: keyof typeof showSecrets) => {
     setShowSecrets(prev => ({
@@ -62,8 +134,19 @@ export function Settings() {
   const handleEbayConfigSave = async () => {
     setLoading(true);
     try {
+      console.log('Attempting to save eBay config:', { 
+        ...ebayConfig, 
+        certId: ebayConfig.certId ? '[REDACTED]' : 'EMPTY', 
+        userToken: ebayConfig.userToken ? '[REDACTED]' : 'EMPTY' 
+      });
+
       // Validate required fields
       if (!ebayConfig.appId || !ebayConfig.devId || !ebayConfig.certId) {
+        console.error('Validation failed - missing required fields:', {
+          appId: !!ebayConfig.appId,
+          devId: !!ebayConfig.devId,
+          certId: !!ebayConfig.certId
+        });
         toast({
           title: "Validation Error",
           description: "App ID, Dev ID, and Cert ID are required for eBay configuration.",
@@ -72,17 +155,19 @@ export function Settings() {
         return;
       }
 
-      // Here you would call an API to save the eBay configuration
-      // await saveEbayConfig(ebayConfig);
-      
+      console.log('Validation passed, calling saveEbayConfig...');
+      const result = await saveEbayConfig(ebayConfig);
+      console.log('eBay config save result:', result);
+
       toast({
         title: "Success",
         description: "eBay API configuration saved successfully."
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error saving eBay config:', error);
       toast({
         title: "Error",
-        description: "Failed to save eBay configuration.",
+        description: error.message || "Failed to save eBay configuration.",
         variant: "destructive"
       });
     } finally {
@@ -93,17 +178,23 @@ export function Settings() {
   const handleTcgPlayerConfigSave = async () => {
     setLoading(true);
     try {
-      // Here you would call an API to save the TCGPlayer configuration
-      // await saveTcgPlayerConfig(tcgPlayerConfig);
-      
+      console.log('Attempting to save TCGPlayer config:', { 
+        ...tcgPlayerConfig, 
+        apiKey: tcgPlayerConfig.apiKey ? '[REDACTED]' : 'EMPTY' 
+      });
+
+      const result = await saveTcgPlayerConfig(tcgPlayerConfig);
+      console.log('TCGPlayer config save result:', result);
+
       toast({
         title: "Success",
         description: "TCGPlayer API configuration saved successfully."
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error saving TCGPlayer config:', error);
       toast({
         title: "Error",
-        description: "Failed to save TCGPlayer configuration.",
+        description: error.message || "Failed to save TCGPlayer configuration.",
         variant: "destructive"
       });
     } finally {
@@ -114,17 +205,20 @@ export function Settings() {
   const handleNotificationsSave = async () => {
     setLoading(true);
     try {
-      // Here you would call an API to save notification preferences
-      // await saveNotificationPreferences(notifications);
-      
+      console.log('Attempting to save notification preferences:', notifications);
+
+      const result = await saveNotificationPreferences(notifications);
+      console.log('Notification preferences save result:', result);
+
       toast({
         title: "Success",
         description: "Notification preferences saved successfully."
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error saving notification preferences:', error);
       toast({
         title: "Error",
-        description: "Failed to save notification preferences.",
+        description: error.message || "Failed to save notification preferences.",
         variant: "destructive"
       });
     } finally {
@@ -135,17 +229,20 @@ export function Settings() {
   const handleScanningPrefsSave = async () => {
     setLoading(true);
     try {
-      // Here you would call an API to save scanning preferences
-      // await saveScanningPreferences(scanningPrefs);
-      
+      console.log('Attempting to save scanning preferences:', scanningPrefs);
+
+      const result = await saveScanningPreferences(scanningPrefs);
+      console.log('Scanning preferences save result:', result);
+
       toast({
         title: "Success",
         description: "Scanning preferences saved successfully."
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error saving scanning preferences:', error);
       toast({
         title: "Error",
-        description: "Failed to save scanning preferences.",
+        description: error.message || "Failed to save scanning preferences.",
         variant: "destructive"
       });
     } finally {
@@ -154,13 +251,39 @@ export function Settings() {
   };
 
   const rotateCertId = () => {
-    // This would typically call eBay's API to rotate the certificate
+    console.log('Rotate Cert ID button clicked');
     toast({
       title: "Certificate Rotation",
       description: "This feature will rotate your eBay Cert ID. Please implement eBay API integration.",
       variant: "default"
     });
   };
+
+  const handleEbayConfigChange = (field: keyof EbayConfig, value: string) => {
+    console.log(`Updating eBay config field ${field}:`, field === 'certId' || field === 'userToken' ? '[REDACTED]' : value);
+    setEbayConfig(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleTcgPlayerConfigChange = (field: keyof TcgPlayerConfig, value: string) => {
+    console.log(`Updating TCGPlayer config field ${field}:`, field === 'apiKey' ? '[REDACTED]' : value);
+    setTcgPlayerConfig(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  if (initialLoading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Loading settings...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -199,7 +322,7 @@ export function Settings() {
                     id="ebay-app-id"
                     placeholder="e.g., JohnJohn-CardScan-PRD-081384bec-971c4e13"
                     value={ebayConfig.appId}
-                    onChange={(e) => setEbayConfig(prev => ({ ...prev, appId: e.target.value }))}
+                    onChange={(e) => handleEbayConfigChange('appId', e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -208,7 +331,7 @@ export function Settings() {
                     id="ebay-dev-id"
                     placeholder="e.g., ff5fc952-6f54-4126-8c27-867835de4eb3"
                     value={ebayConfig.devId}
-                    onChange={(e) => setEbayConfig(prev => ({ ...prev, devId: e.target.value }))}
+                    onChange={(e) => handleEbayConfigChange('devId', e.target.value)}
                   />
                 </div>
               </div>
@@ -232,7 +355,7 @@ export function Settings() {
                     type={showSecrets.ebayClientSecret ? "text" : "password"}
                     placeholder="e.g., PRD-81384bec8355-9d2c-4314-8451-a725"
                     value={ebayConfig.certId}
-                    onChange={(e) => setEbayConfig(prev => ({ ...prev, certId: e.target.value }))}
+                    onChange={(e) => handleEbayConfigChange('certId', e.target.value)}
                   />
                   <Button
                     type="button"
@@ -254,7 +377,7 @@ export function Settings() {
                     type={showSecrets.ebayUserToken ? "text" : "password"}
                     placeholder="v^1.1#i^1#p^3#r^1#I^3#f^0#t^Ul4xMF81Ok..."
                     value={ebayConfig.userToken}
-                    onChange={(e) => setEbayConfig(prev => ({ ...prev, userToken: e.target.value }))}
+                    onChange={(e) => handleEbayConfigChange('userToken', e.target.value)}
                   />
                   <Button
                     type="button"
@@ -277,7 +400,7 @@ export function Settings() {
                   id="ebay-environment"
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                   value={ebayConfig.environment}
-                  onChange={(e) => setEbayConfig(prev => ({ ...prev, environment: e.target.value }))}
+                  onChange={(e) => handleEbayConfigChange('environment', e.target.value)}
                 >
                   <option value="sandbox">Sandbox (Testing)</option>
                   <option value="production">Production</option>
@@ -293,7 +416,7 @@ export function Settings() {
 
               <Button onClick={handleEbayConfigSave} disabled={loading} className="w-full">
                 <Save className="h-4 w-4 mr-2" />
-                Save eBay Configuration
+                {loading ? 'Saving...' : 'Save eBay Configuration'}
               </Button>
             </CardContent>
           </Card>
@@ -319,7 +442,7 @@ export function Settings() {
                       type={showSecrets.tcgPlayerApiKey ? "text" : "password"}
                       placeholder="Enter your TCGPlayer API key"
                       value={tcgPlayerConfig.apiKey}
-                      onChange={(e) => setTcgPlayerConfig(prev => ({ ...prev, apiKey: e.target.value }))}
+                      onChange={(e) => handleTcgPlayerConfigChange('apiKey', e.target.value)}
                     />
                     <Button
                       type="button"
@@ -338,14 +461,14 @@ export function Settings() {
                     id="tcg-partner-id"
                     placeholder="Enter your Partner ID"
                     value={tcgPlayerConfig.partnerId}
-                    onChange={(e) => setTcgPlayerConfig(prev => ({ ...prev, partnerId: e.target.value }))}
+                    onChange={(e) => handleTcgPlayerConfigChange('partnerId', e.target.value)}
                   />
                 </div>
               </div>
 
               <Button onClick={handleTcgPlayerConfigSave} disabled={loading} className="w-full">
                 <Save className="h-4 w-4 mr-2" />
-                Save TCGPlayer Configuration
+                {loading ? 'Saving...' : 'Save TCGPlayer Configuration'}
               </Button>
             </CardContent>
           </Card>
@@ -370,7 +493,7 @@ export function Settings() {
                   </div>
                   <Switch
                     checked={notifications.email}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked) =>
                       setNotifications(prev => ({ ...prev, email: checked }))
                     }
                   />
@@ -387,7 +510,7 @@ export function Settings() {
                   </div>
                   <Switch
                     checked={notifications.push}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked) =>
                       setNotifications(prev => ({ ...prev, push: checked }))
                     }
                   />
@@ -404,7 +527,7 @@ export function Settings() {
                   </div>
                   <Switch
                     checked={notifications.priceAlerts}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked) =>
                       setNotifications(prev => ({ ...prev, priceAlerts: checked }))
                     }
                   />
@@ -421,7 +544,7 @@ export function Settings() {
                   </div>
                   <Switch
                     checked={notifications.tradeRequests}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked) =>
                       setNotifications(prev => ({ ...prev, tradeRequests: checked }))
                     }
                   />
@@ -438,7 +561,7 @@ export function Settings() {
                   </div>
                   <Switch
                     checked={notifications.marketUpdates}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked) =>
                       setNotifications(prev => ({ ...prev, marketUpdates: checked }))
                     }
                   />
@@ -447,7 +570,7 @@ export function Settings() {
 
               <Button onClick={handleNotificationsSave} disabled={loading} className="w-full">
                 <Save className="h-4 w-4 mr-2" />
-                Save Notification Preferences
+                {loading ? 'Saving...' : 'Save Notification Preferences'}
               </Button>
             </CardContent>
           </Card>
@@ -472,7 +595,7 @@ export function Settings() {
                   </div>
                   <Switch
                     checked={scanningPrefs.autoProcess}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked) =>
                       setScanningPrefs(prev => ({ ...prev, autoProcess: checked }))
                     }
                   />
@@ -489,9 +612,9 @@ export function Settings() {
                     max="1.0"
                     step="0.1"
                     value={scanningPrefs.confidenceThreshold}
-                    onChange={(e) => setScanningPrefs(prev => ({ 
-                      ...prev, 
-                      confidenceThreshold: parseFloat(e.target.value) 
+                    onChange={(e) => setScanningPrefs(prev => ({
+                      ...prev,
+                      confidenceThreshold: parseFloat(e.target.value)
                     }))}
                   />
                   <p className="text-xs text-muted-foreground">
@@ -505,7 +628,7 @@ export function Settings() {
                     id="image-quality"
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                     value={scanningPrefs.imageQuality}
-                    onChange={(e) => setScanningPrefs(prev => ({ ...prev, imageQuality: e.target.value }))}
+                    onChange={(e) => setScanningPrefs(prev => ({ ...prev, imageQuality: e.target.value as 'low' | 'medium' | 'high' }))}
                   >
                     <option value="low">Low (Faster processing)</option>
                     <option value="medium">Medium (Balanced)</option>
@@ -521,9 +644,9 @@ export function Settings() {
                     min="1"
                     max="50"
                     value={scanningPrefs.batchSize}
-                    onChange={(e) => setScanningPrefs(prev => ({ 
-                      ...prev, 
-                      batchSize: parseInt(e.target.value) 
+                    onChange={(e) => setScanningPrefs(prev => ({
+                      ...prev,
+                      batchSize: parseInt(e.target.value)
                     }))}
                   />
                   <p className="text-xs text-muted-foreground">
@@ -534,7 +657,7 @@ export function Settings() {
 
               <Button onClick={handleScanningPrefsSave} disabled={loading} className="w-full">
                 <Save className="h-4 w-4 mr-2" />
-                Save Scanning Preferences
+                {loading ? 'Saving...' : 'Save Scanning Preferences'}
               </Button>
             </CardContent>
           </Card>

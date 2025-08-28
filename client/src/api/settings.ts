@@ -29,6 +29,10 @@ export interface ScanningPreferences {
   batchSize: number;
 }
 
+// Description: Save eBay API configuration
+// Endpoint: POST /api/settings/ebay
+// Request: { appId: string, devId: string, certId: string, userToken: string, environment: string }
+// Response: { success: boolean, message: string }
 export const saveEbayConfig = async (config: EbayConfig) => {
   try {
     console.log('Saving eBay configuration:', { ...config, certId: '[REDACTED]', userToken: '[REDACTED]' });
@@ -41,6 +45,10 @@ export const saveEbayConfig = async (config: EbayConfig) => {
   }
 };
 
+// Description: Get eBay API configuration
+// Endpoint: GET /api/settings/ebay
+// Request: {}
+// Response: { appId: string, devId: string, certId: string, userToken: string, environment: string }
 export const getEbayConfig = async (): Promise<EbayConfig> => {
   try {
     console.log('Fetching eBay configuration');
@@ -53,6 +61,10 @@ export const getEbayConfig = async (): Promise<EbayConfig> => {
   }
 };
 
+// Description: Save TCGPlayer API configuration
+// Endpoint: POST /api/settings/tcgplayer
+// Request: { apiKey: string, partnerId: string, environment: string }
+// Response: { success: boolean, message: string }
 export const saveTcgPlayerConfig = async (config: TcgPlayerConfig) => {
   try {
     console.log('Saving TCGPlayer configuration:', { ...config, apiKey: '[REDACTED]' });
@@ -65,6 +77,10 @@ export const saveTcgPlayerConfig = async (config: TcgPlayerConfig) => {
   }
 };
 
+// Description: Get TCGPlayer API configuration
+// Endpoint: GET /api/settings/tcgplayer
+// Request: {}
+// Response: { apiKey: string, partnerId: string, environment: string }
 export const getTcgPlayerConfig = async (): Promise<TcgPlayerConfig> => {
   try {
     console.log('Fetching TCGPlayer configuration');
@@ -77,6 +93,10 @@ export const getTcgPlayerConfig = async (): Promise<TcgPlayerConfig> => {
   }
 };
 
+// Description: Save notification preferences
+// Endpoint: POST /api/settings/notifications
+// Request: { email: boolean, push: boolean, priceAlerts: boolean, tradeRequests: boolean, marketUpdates: boolean }
+// Response: { success: boolean, message: string }
 export const saveNotificationPreferences = async (preferences: NotificationPreferences) => {
   try {
     console.log('Saving notification preferences:', preferences);
@@ -89,6 +109,10 @@ export const saveNotificationPreferences = async (preferences: NotificationPrefe
   }
 };
 
+// Description: Get notification preferences
+// Endpoint: GET /api/settings/notifications
+// Request: {}
+// Response: { email: boolean, push: boolean, priceAlerts: boolean, tradeRequests: boolean, marketUpdates: boolean }
 export const getNotificationPreferences = async (): Promise<NotificationPreferences> => {
   try {
     console.log('Fetching notification preferences');
@@ -101,6 +125,10 @@ export const getNotificationPreferences = async (): Promise<NotificationPreferen
   }
 };
 
+// Description: Save scanning preferences
+// Endpoint: POST /api/settings/scanning
+// Request: { autoProcess: boolean, confidenceThreshold: number, imageQuality: string, batchSize: number }
+// Response: { success: boolean, message: string }
 export const saveScanningPreferences = async (preferences: ScanningPreferences) => {
   try {
     console.log('Saving scanning preferences:', preferences);
@@ -113,6 +141,10 @@ export const saveScanningPreferences = async (preferences: ScanningPreferences) 
   }
 };
 
+// Description: Get scanning preferences
+// Endpoint: GET /api/settings/scanning
+// Request: {}
+// Response: { autoProcess: boolean, confidenceThreshold: number, imageQuality: string, batchSize: number }
 export const getScanningPreferences = async (): Promise<ScanningPreferences> => {
   try {
     console.log('Fetching scanning preferences');
@@ -125,6 +157,10 @@ export const getScanningPreferences = async (): Promise<ScanningPreferences> => 
   }
 };
 
+// Description: Export collection data
+// Endpoint: GET /api/settings/export
+// Request: { format?: string }
+// Response: Blob data
 export const exportCollection = async (format: 'csv' | 'json' = 'csv') => {
   try {
     console.log(`Exporting collection in ${format} format`);
@@ -139,12 +175,16 @@ export const exportCollection = async (format: 'csv' | 'json' = 'csv') => {
   }
 };
 
+// Description: Import collection data
+// Endpoint: POST /api/settings/import
+// Request: FormData with file
+// Response: { success: boolean, message: string }
 export const importCollection = async (file: File) => {
   try {
     console.log('Importing collection from file:', file.name);
     const formData = new FormData();
     formData.append('file', file);
-    
+
     const response = await api.post('/api/settings/import', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
@@ -158,6 +198,10 @@ export const importCollection = async (file: File) => {
   }
 };
 
+// Description: Create database backup
+// Endpoint: POST /api/settings/backup
+// Request: {}
+// Response: { success: boolean, message: string }
 export const backupDatabase = async () => {
   try {
     console.log('Creating database backup');
@@ -170,6 +214,10 @@ export const backupDatabase = async () => {
   }
 };
 
+// Description: Perform database maintenance
+// Endpoint: POST /api/settings/maintenance
+// Request: {}
+// Response: { success: boolean, message: string }
 export const performDatabaseMaintenance = async () => {
   try {
     console.log('Performing database maintenance');
@@ -182,6 +230,10 @@ export const performDatabaseMaintenance = async () => {
   }
 };
 
+// Description: Clear all collection data
+// Endpoint: DELETE /api/settings/clear-all
+// Request: {}
+// Response: { success: boolean, message: string }
 export const clearAllCollectionData = async () => {
   try {
     console.log('Clearing all collection data');
@@ -194,6 +246,10 @@ export const clearAllCollectionData = async () => {
   }
 };
 
+// Description: Rotate eBay Cert ID
+// Endpoint: POST /api/settings/ebay/rotate-cert
+// Request: {}
+// Response: { success: boolean, message: string }
 export const rotateCertId = async () => {
   try {
     console.log('Rotating eBay Cert ID');

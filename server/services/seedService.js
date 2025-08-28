@@ -8,12 +8,17 @@ const { hashPassword } = require('../utils/password');
  */
 const seedAdminUser = async () => {
   try {
-    console.log('Starting admin user seeding...');
-    
+    console.log('[PERFORMANCE] Starting admin user seeding process...');
+    const startTime = Date.now();
+
     // Check if admin user already exists
+    console.log('[PERFORMANCE] Checking for existing admin user...');
+    const queryStartTime = Date.now();
     const existingAdmin = await User.findOne({ email: 'admin@cardwise.com' });
+    console.log(`[PERFORMANCE] Admin user query took ${Date.now() - queryStartTime}ms`);
+    
     if (existingAdmin) {
-      console.log('Admin user already exists, skipping seeding');
+      console.log(`[PERFORMANCE] Admin user check completed in ${Date.now() - startTime}ms - user exists`);
       return {
         success: true,
         message: 'Admin user already exists',
@@ -26,9 +31,12 @@ const seedAdminUser = async () => {
       };
     }
 
+    console.log('[PERFORMANCE] Creating new admin user...');
     // Create admin user
+    const hashStartTime = Date.now();
     const hashedPassword = await hashPassword('admin123');
-    
+    console.log(`[PERFORMANCE] Password hashing took ${Date.now() - hashStartTime}ms`);
+
     const adminUser = new User({
       email: 'admin@cardwise.com',
       password: hashedPassword,
@@ -45,8 +53,10 @@ const seedAdminUser = async () => {
       }
     });
 
+    const saveStartTime = Date.now();
     const savedUser = await adminUser.save();
-    console.log('Admin user created successfully:', savedUser.email);
+    console.log(`[PERFORMANCE] Admin user save took ${Date.now() - saveStartTime}ms`);
+    console.log(`[PERFORMANCE] Admin user creation completed in ${Date.now() - startTime}ms`);
 
     return {
       success: true,
@@ -59,7 +69,8 @@ const seedAdminUser = async () => {
       }
     };
   } catch (error) {
-    console.error('Error seeding admin user:', error.message);
+    console.error('[PERFORMANCE] Error seeding admin user:', error.message);
+    console.error('[PERFORMANCE] Error stack:', error.stack);
     throw new Error(`Failed to seed admin user: ${error.message}`);
   }
 };
@@ -70,18 +81,27 @@ const seedAdminUser = async () => {
  */
 const seedSampleCards = async () => {
   try {
-    console.log('Starting sample cards seeding...');
-    
+    console.log('[PERFORMANCE] Starting sample cards seeding process...');
+    const startTime = Date.now();
+
     // Get admin user to assign cards to
+    console.log('[PERFORMANCE] Finding admin user for cards...');
+    const userQueryStartTime = Date.now();
     const adminUser = await User.findOne({ email: 'admin@cardwise.com' });
+    console.log(`[PERFORMANCE] Admin user lookup took ${Date.now() - userQueryStartTime}ms`);
+    
     if (!adminUser) {
       throw new Error('Admin user not found. Please seed admin user first.');
     }
 
     // Check if cards already exist
+    console.log('[PERFORMANCE] Checking for existing cards...');
+    const cardQueryStartTime = Date.now();
     const existingCards = await Card.countDocuments({ userId: adminUser._id });
+    console.log(`[PERFORMANCE] Card count query took ${Date.now() - cardQueryStartTime}ms`);
+    
     if (existingCards > 0) {
-      console.log(`${existingCards} cards already exist for admin user, skipping seeding`);
+      console.log(`[PERFORMANCE] Sample cards check completed in ${Date.now() - startTime}ms - ${existingCards} cards exist`);
       return {
         success: true,
         message: `${existingCards} cards already exist`,
@@ -89,6 +109,7 @@ const seedSampleCards = async () => {
       };
     }
 
+    console.log('[PERFORMANCE] Creating sample cards...');
     const sampleCards = [
       {
         playerName: 'Mike Trout',
@@ -97,8 +118,8 @@ const seedSampleCards = async () => {
         manufacturer: 'Topps',
         setName: 'Bowman Chrome',
         cardNumber: 'BC1',
-        frontImage: '/api/placeholder/250/350',
-        backImage: '/api/placeholder/250/350',
+        frontImage: 'https://via.placeholder.com/250x350/4A90E2/FFFFFF?text=Mike+Trout+Front',
+        backImage: 'https://via.placeholder.com/250x350/E24A4A/FFFFFF?text=Mike+Trout+Back',
         condition: { centering: 9, corners: 9, edges: 8, surface: 9, overall: 'Near Mint' },
         isRookieCard: true,
         isAutograph: false,
@@ -117,8 +138,8 @@ const seedSampleCards = async () => {
         manufacturer: 'Upper Deck',
         setName: 'Exquisite Collection',
         cardNumber: 'RC23',
-        frontImage: '/api/placeholder/250/350',
-        backImage: '/api/placeholder/250/350',
+        frontImage: 'https://via.placeholder.com/250x350/FF8C00/FFFFFF?text=LeBron+James+Front',
+        backImage: 'https://via.placeholder.com/250x350/FF4500/FFFFFF?text=LeBron+James+Back',
         condition: { centering: 10, corners: 9, edges: 9, surface: 10, overall: 'Mint' },
         isRookieCard: true,
         isAutograph: true,
@@ -137,8 +158,8 @@ const seedSampleCards = async () => {
         manufacturer: 'Playoff Contenders',
         setName: 'Championship Ticket',
         cardNumber: '144',
-        frontImage: '/api/placeholder/250/350',
-        backImage: '/api/placeholder/250/350',
+        frontImage: 'https://via.placeholder.com/250x350/32CD32/FFFFFF?text=Tom+Brady+Front',
+        backImage: 'https://via.placeholder.com/250x350/228B22/FFFFFF?text=Tom+Brady+Back',
         condition: { centering: 8, corners: 8, edges: 9, surface: 8, overall: 'Near Mint' },
         isRookieCard: true,
         isAutograph: true,
@@ -157,8 +178,8 @@ const seedSampleCards = async () => {
         manufacturer: 'O-Pee-Chee',
         setName: 'O-Pee-Chee',
         cardNumber: '18',
-        frontImage: '/api/placeholder/250/350',
-        backImage: '/api/placeholder/250/350',
+        frontImage: 'https://via.placeholder.com/250x350/9370DB/FFFFFF?text=Wayne+Gretzky+Front',
+        backImage: 'https://via.placeholder.com/250x350/8A2BE2/FFFFFF?text=Wayne+Gretzky+Back',
         condition: { centering: 7, corners: 7, edges: 8, surface: 8, overall: 'Very Good' },
         isRookieCard: true,
         isAutograph: false,
@@ -177,8 +198,8 @@ const seedSampleCards = async () => {
         manufacturer: 'Fleer',
         setName: 'Fleer Basketball',
         cardNumber: '57',
-        frontImage: '/api/placeholder/250/350',
-        backImage: '/api/placeholder/250/350',
+        frontImage: 'https://via.placeholder.com/250x350/DC143C/FFFFFF?text=Michael+Jordan+Front',
+        backImage: 'https://via.placeholder.com/250x350/B22222/FFFFFF?text=Michael+Jordan+Back',
         condition: { centering: 8, corners: 7, edges: 8, surface: 9, overall: 'Very Good' },
         isRookieCard: true,
         isAutograph: false,
@@ -192,8 +213,10 @@ const seedSampleCards = async () => {
       }
     ];
 
+    const insertStartTime = Date.now();
     const createdCards = await Card.insertMany(sampleCards);
-    console.log(`Successfully created ${createdCards.length} sample cards`);
+    console.log(`[PERFORMANCE] Card insertion took ${Date.now() - insertStartTime}ms`);
+    console.log(`[PERFORMANCE] Sample cards creation completed in ${Date.now() - startTime}ms`);
 
     return {
       success: true,
@@ -207,7 +230,8 @@ const seedSampleCards = async () => {
       }))
     };
   } catch (error) {
-    console.error('Error seeding sample cards:', error.message);
+    console.error('[PERFORMANCE] Error seeding sample cards:', error.message);
+    console.error('[PERFORMANCE] Error stack:', error.stack);
     throw new Error(`Failed to seed sample cards: ${error.message}`);
   }
 };

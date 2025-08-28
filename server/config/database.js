@@ -3,11 +3,8 @@ require('dotenv').config();
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.DATABASE_URL, {
-      // These options are to handle deprecation warnings
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    console.log('Attempting to connect to MongoDB...');
+    const conn = await mongoose.connect(process.env.DATABASE_URL);
 
     console.log(`MongoDB Connected: ${conn.connection.host}`);
 
@@ -37,7 +34,8 @@ const connectDB = async () => {
     });
 
   } catch (error) {
-    console.error(`Error: ${error.message}`);
+    console.error(`MongoDB connection failed: ${error.message}`);
+    console.error('Full error details:', error);
     process.exit(1);
   }
 };
