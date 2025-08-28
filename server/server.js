@@ -8,6 +8,7 @@ const basicRoutes = require("./routes/index");
 const seedRoutes = require("./routes/seedRoutes");
 const settingsRoutes = require("./routes/settingsRoutes");
 const cardRoutes = require("./routes/cardRoutes");
+const scanRoutes = require("./routes/scanRoutes");
 const { connectDB } = require("./config/database");
 const { seedAdminUser, seedSampleCards } = require("./services/seedService");
 const cors = require("cors");
@@ -25,7 +26,34 @@ app.enable('json spaces');
 app.enable('strict routing');
 
 app.use(cors({}));
-app.use(express.json());
+
+// Custom JSON parser with better error handling
+app.use('/api', (req, res, next) => {
+  console.log(`[PERFORMANCE] ${req.method} ${req.url} - Processing request`);
+  if (req.method === 'POST' || req.method === 'PUT') {
+    console.log('[PERFORMANCE] Request body:', JSON.stringify(req.body));
+    console.log('[PERFORMANCE] Request headers:', JSON.stringify(req.headers));
+  }
+  next();
+});
+
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, res, buf, encoding) => {
+    try {
+      if (buf && buf.length > 0) {
+        const bodyString = buf.toString(encoding || 'utf8');
+        console.log('[PERFORMANCE] Raw request body:', bodyString);
+        JSON.parse(bodyString);
+      }
+    } catch (error) {
+      console.error('[PERFORMANCE] JSON parsing error:', error.message);
+      console.error('[PERFORMANCE] Invalid JSON body:', buf.toString(encoding || 'utf8'));
+      throw new Error('Invalid JSON in request body');
+    }
+  }
+}));
+
 app.use(express.urlencoded({ extended: true }));
 
 // Database connection and initialization
@@ -75,18 +103,31 @@ app.use(basicRoutes);
 app.use(seedRoutes);
 app.use(settingsRoutes);
 app.use(cardRoutes);
+app.use(scanRoutes);
 
 // If no routes handled the request, it's a 404
 app.use((req, res, next) => {
   console.log(`[PERFORMANCE] 404 request: ${req.method} ${req.url}`);
-  res.status(404).send("Page not found.");
+  res.status(404).json({
+    success: false,
+    error: "Endpoint not found"
+  });
 });
 
-// Error handling
+// Error handling - ensure JSON responses
 app.use((err, req, res, next) => {
   console.error(`[PERFORMANCE] Unhandled application error: ${err.message}`);
-  console.error(err.stack);
-  res.status(500).send("There was an error serving your request.");
+  console.error('[PERFORMANCE] Error stack:', err.stack);
+  
+  // Always return JSON error responses for API endpoints
+  if (req.url.startsWith('/api/')) {
+    res.status(500).json({
+      success: false,
+      error: err.message || "Internal server error"
+    });
+  } else {
+    res.status(500).send("There was an error serving your request.");
+  }
 });
 
 app.listen(port, () => {
