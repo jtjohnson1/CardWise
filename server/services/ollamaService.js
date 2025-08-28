@@ -22,6 +22,7 @@ class OllamaService {
       return true;
     } catch (error) {
       console.error('[OLLAMA] Connection failed:', error.message);
+      // Always return false instead of throwing - this is critical for fallback mode
       return false;
     }
   }
@@ -32,11 +33,11 @@ class OllamaService {
   async analyzeCardImage(imagePath) {
     try {
       console.log(`[OLLAMA] Analyzing card image: ${imagePath}`);
-      
+
       // Read and encode image
       const imageBuffer = await fs.readFile(imagePath);
       const base64Image = imageBuffer.toString('base64');
-      
+
       const prompt = `Analyze this trading card image and extract the following information in JSON format:
 {
   "playerName": "player's full name",
@@ -50,7 +51,7 @@ class OllamaService {
   "isMemorabilia": "true if contains memorabilia/patch, false otherwise",
   "condition": {
     "centering": "rate 1-10",
-    "corners": "rate 1-10", 
+    "corners": "rate 1-10",
     "edges": "rate 1-10",
     "surface": "rate 1-10",
     "overall": "Poor, Fair, Good, Very Good, Excellent, Near Mint, Mint, or Gem Mint"
@@ -81,22 +82,22 @@ Only return valid JSON, no other text.`;
       try {
         // Clean up the response - sometimes Ollama adds extra text
         let jsonStr = response.data.response.trim();
-        
+
         // Find JSON object in response
         const jsonStart = jsonStr.indexOf('{');
         const jsonEnd = jsonStr.lastIndexOf('}') + 1;
-        
+
         if (jsonStart !== -1 && jsonEnd > jsonStart) {
           jsonStr = jsonStr.substring(jsonStart, jsonEnd);
         }
-        
+
         cardData = JSON.parse(jsonStr);
         console.log(`[OLLAMA] Parsed card data for ${imagePath}:`, cardData);
-        
+
       } catch (parseError) {
         console.error(`[OLLAMA] Failed to parse JSON response for ${imagePath}:`, parseError.message);
         console.error(`[OLLAMA] Raw response was:`, response.data.response);
-        
+
         // Return default data if parsing fails
         cardData = {
           playerName: 'Unknown Player',
@@ -134,7 +135,7 @@ Only return valid JSON, no other text.`;
   async processCardFolder(folderPath, progressCallback) {
     try {
       console.log(`[OLLAMA] Processing card folder: ${folderPath}`);
-      
+
       // Check if folder exists
       try {
         await fs.access(folderPath);
@@ -144,7 +145,7 @@ Only return valid JSON, no other text.`;
 
       // Read folder contents
       const files = await fs.readdir(folderPath);
-      const imageFiles = files.filter(file => 
+      const imageFiles = files.filter(file =>
         /\.(jpg|jpeg|png|gif|bmp)$/i.test(file)
       );
 
@@ -161,14 +162,14 @@ Only return valid JSON, no other text.`;
         try {
           const imagePath = path.join(folderPath, imageFile);
           console.log(`[OLLAMA] Processing image ${processed + 1}/${imageFiles.length}: ${imageFile}`);
-          
+
           const cardData = await this.analyzeCardImage(imagePath);
-          
+
           // Add image paths
           cardData.frontImage = imagePath;
           cardData.backImage = imagePath; // For now, use same image for both
           cardData.lotNumber = path.basename(folderPath);
-          
+
           results.push({
             success: true,
             imageFile,
@@ -176,7 +177,7 @@ Only return valid JSON, no other text.`;
           });
 
           processed++;
-          
+
           // Call progress callback if provided
           if (progressCallback) {
             progressCallback(processed, imageFiles.length);
@@ -190,7 +191,7 @@ Only return valid JSON, no other text.`;
             error: error.message
           });
           processed++;
-          
+
           if (progressCallback) {
             progressCallback(processed, imageFiles.length);
           }
@@ -198,7 +199,7 @@ Only return valid JSON, no other text.`;
       }
 
       console.log(`[OLLAMA] Completed processing ${folderPath}. Success: ${results.filter(r => r.success).length}, Failed: ${results.filter(r => !r.success).length}`);
-      
+
       return results;
 
     } catch (error) {

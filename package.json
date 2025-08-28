@@ -1,20 +1,42 @@
 {
   "name": "CardWise",
   "version": "1.0.0",
-  "description": "Digital Card Collection Management Application",
-  "main": "index.js",
+  "description": "CardWise - Digital card collection management application with AI-powered scanning and real-time pricing",
+  "main": "server/server.js",
   "scripts": {
     "start": "concurrently -n \"client,server\" \"npm run client\" \"npm run server\"",
     "client": "cd client && npm run dev",
     "server": "cd server && npm run dev",
     "build": "cd client && npm run build",
-    "build-deb": "node scripts/build-deb.js",
-    "install-deps": "npm install && cd client && npm install && cd ../server && npm install"
+    "install-all": "npm install && cd client && npm install && cd ../server && npm install",
+    "dev": "npm run start",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["cards", "collection", "management", "sports", "trading"],
-  "author": "CardCat Team",
+  "keywords": [
+    "cards",
+    "collection",
+    "trading-cards",
+    "ai",
+    "scanning",
+    "pricing",
+    "sports-cards"
+  ],
+  "author": "CardWise Team",
   "license": "MIT",
   "devDependencies": {
     "concurrently": "^8.2.2"
-  }
+  },
+  "dependencies": {},
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/cardwise.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/cardwise/issues"
+  },
+  "homepage": "https://github.com/your-username/cardwise#readme"
 }
